@@ -6,7 +6,12 @@ This is for benchmarking and performance research of an initial implementation o
  - in some cases, tweaking the support function implementations for better performance.
  - are there any performance penalties associated with generics in this code?
 
-To run this code, you will need [CL 510541](https://go.dev/cl/510541).  There are incompatible changes in the pipeline that will require updates to the support library and the benchmarks at some point, so be aware, at some point there will be some instability, but these should generally not matter to these benchmarks.
+To run this code, you need to use the a recent version of the the Go development tip (for 1.22) and `GOEXPERIMENT=range`
+```bash
+$ go install golang.org/dl/gotip@latest
+$ gotip download
+$ GOEXPERIMENT=range gotip build/run/test/etc ... 
+```
 
 To obtain best performance with the current inliner, you'll need to increase the inlining threshold (in `src/cmd/compile/internal/inline/inl.go`) from 80 to 125.  One goal of this work is to create a test case for revisions to the inliner heuristics to improve performance of code containing functions that use (call) their function parameters.
 

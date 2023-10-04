@@ -522,24 +522,24 @@ func TestZips(t *testing.T) {
 }
 
 // local copy, specialized
-type Seq func(yield func(Int32) bool) bool
+type Seq func(yield func(Int32) bool)
 
 // from proposal itself, does this avoid allocations?
 func Concat[V any](seqs ...xiter.Seq[V]) xiter.Seq[V] {
-	return func(yield func(V) bool) bool {
+	return func(yield func(V) bool) {
 		for _, seq := range seqs {
 			for v := range seq {
 				if !yield(v) {
-					return false
+					return
 				}
 			}
 		}
-		return true
+		return
 	}
 }
 
 func MergeFuncSpecialized(seq1, seq2 Seq, compare func(Int32, Int32) int) Seq {
-	return func(yield func(Int32) bool) bool {
+	return func(yield func(Int32) bool) {
 		p1, stop := Pull(seq1)
 		defer stop()
 		p2, stop := Pull(seq2)
@@ -556,24 +556,24 @@ func MergeFuncSpecialized(seq1, seq2 Seq, compare func(Int32, Int32) int) Seq {
 			switch {
 			case !ok2 || c < 0:
 				if !yield(v1) {
-					return false
+					return
 				}
 				v1, ok1 = p1()
 			case !ok1 || c > 0:
 				if !yield(v2) {
-					return false
+					return
 				}
 				v2, ok2 = p2()
 			default:
 				if !yield(v1) || !yield(v2) {
-					return false
+					return
 				}
 				v1, ok1 = p1()
 				v2, ok2 = p2()
 			}
 		}
 
-		return false
+		return
 	}
 }
 
@@ -589,7 +589,7 @@ type Zipped struct {
 // Zip returns a new Seq that yields the values of seq1 and seq2
 // simultaneously.
 func ZipSpecialized(seq1 Seq, seq2 Seq) xiter.Seq[Zipped] {
-	return func(yield func(Zipped) bool) bool {
+	return func(yield func(Zipped) bool) {
 		p1, stop := Pull(seq1)
 		defer stop()
 		p2, stop := Pull(seq2)
@@ -600,7 +600,7 @@ func ZipSpecialized(seq1 Seq, seq2 Seq) xiter.Seq[Zipped] {
 			val.V1, val.OK1 = p1()
 			val.V2, val.OK2 = p2()
 			if (!val.OK1 && !val.OK2) || !yield(val) {
-				return false
+				return
 			}
 		}
 	}
@@ -609,7 +609,7 @@ func ZipSpecialized(seq1 Seq, seq2 Seq) xiter.Seq[Zipped] {
 // Zip returns a new Seq that yields the values of seq1 and seq2
 // simultaneously.
 func ZipSpecializedND(seq1 Seq, seq2 Seq) xiter.Seq[Zipped] {
-	return func(yield func(Zipped) bool) bool {
+	return func(yield func(Zipped) bool) {
 		p1, stop1 := PullND(seq1)
 		p2, stop2 := PullND(seq2)
 
@@ -620,7 +620,7 @@ func ZipSpecializedND(seq1 Seq, seq2 Seq) xiter.Seq[Zipped] {
 			if (!val.OK1 && !val.OK2) || !yield(val) {
 				stop2()
 				stop1()
-				return false
+				return
 			}
 		}
 	}
@@ -629,7 +629,7 @@ func ZipSpecializedND(seq1 Seq, seq2 Seq) xiter.Seq[Zipped] {
 // Zip returns a new Seq that yields the values of seq1 and seq2
 // simultaneously.
 func ZipSpecialized1Pull(seq1 Seq, seq2 Seq) xiter.Seq[Zipped] {
-	return func(body func(Zipped) bool) bool {
+	return func(body func(Zipped) bool) {
 		p2, stop2 := Pull(seq2)
 		defer stop2()
 		done := false
@@ -643,7 +643,7 @@ func ZipSpecialized1Pull(seq1 Seq, seq2 Seq) xiter.Seq[Zipped] {
 			}
 		}
 		if done {
-			return false
+			return
 		}
 		// seq1 is exhausted
 		for v2, ok2 := p2(); ok2; v2, ok2 = p2() {
@@ -652,16 +652,16 @@ func ZipSpecialized1Pull(seq1 Seq, seq2 Seq) xiter.Seq[Zipped] {
 			val.V1, val.OK1 = v1, false
 			val.V2, val.OK2 = v2, true
 			if !body(val) {
-				return false
+				return
 			}
 		}
-		return true
+		return
 	}
 }
 
 func Skip(forall Seq, n int) Seq {
-	return func(body func(Int32) bool) bool {
-		return forall(func(v Int32) bool {
+	return func(body func(Int32) bool) {
+		forall(func(v Int32) bool {
 			if n > 0 {
 				n--
 				return true

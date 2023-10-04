@@ -262,28 +262,28 @@ func (t *T[K, D]) VisitInOrder(f func(K, D)) {
 	t.root.visitInOrder(f)
 }
 
-func (t *T[K, D]) DoAll2(yield func(k K, d D) bool) bool {
-	return t.root.doAll2(yield)
+func (t *T[K, D]) DoAll2(yield func(k K, d D) bool) {
+	t.root.doAll2(yield)
 }
 
-func (t *T[K, D]) DoAll(yield func(k K) bool) bool {
-	return t.root.doAll(yield)
+func (t *T[K, D]) DoAll(yield func(k K) bool) {
+	t.root.doAll(yield)
 }
 
-func (t *T[K, D]) DoAllFunc() func(yield func(k K) bool) bool {
-	return func(yield func(k K) bool) bool {
-		return t.root.doAll(yield)
+func (t *T[K, D]) DoAllFunc() func(yield func(k K) bool) {
+	return func(yield func(k K) bool) {
+		t.root.doAll(yield)
 	}
 }
 
-func (t *T[K, D]) DoAll2Func() func(yield func(k K, d D) bool) bool {
-	return func(yield func(k K, d D) bool) bool {
-		return t.root.doAll2(yield)
+func (t *T[K, D]) DoAll2Func() func(yield func(k K, d D) bool) {
+	return func(yield func(k K, d D) bool) {
+		t.root.doAll2(yield)
 	}
 }
 
-func (t *T[K, D]) DoAll_(yield func(d D) bool) bool {
-	return t.root.doAll_(yield)
+func (t *T[K, D]) DoAll_(yield func(d D) bool) {
+	t.root.doAll_(yield)
 }
 
 // Intersection returns the the intersection of T and U, with data modified

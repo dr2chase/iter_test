@@ -286,6 +286,12 @@ func (t *T[K, D]) DoAll_(yield func(d D) bool) {
 	t.root.doAll_(yield)
 }
 
+// DoAllTwice is a BAD iterator, it will call yield after it returns false.
+func (t *T[K, D]) DoAllTwice(yield func(k K) bool) {
+	t.root.doAll(yield)
+	t.root.doAll(yield)
+}
+
 // Intersection returns the the intersection of T and U, with data modified
 // by the result of f(t.data, u.data); if non-nil/zero, that is the stored value,
 // if nil, then the entry is not added.  If f is nil, then the data from the

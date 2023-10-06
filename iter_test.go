@@ -6,6 +6,7 @@ package iter_test
 
 import (
 	"deedles.dev/xiter"
+	"fmt"
 	"github.com/dr2chase/iter"
 	"math"
 	"os"
@@ -100,7 +101,24 @@ func BenchmarkNothing(b *testing.B) {
 	}
 }
 
-func BenchmarkOldSlice(b *testing.B) {
+func BenchmarkSliceOld(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for _, x := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14} {
+			i += x
+		}
+		for _, x := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14} {
+			i += x
+		}
+	}
+	if i != b.N*15*14 {
+		panic(fmt.Errorf("Expected i = %d, got %d", b.N*15*14, i))
+	}
+
+}
+
+func BenchmarkSliceOldIGlobal(b *testing.B) {
 	b.ReportAllocs()
 	for range b.N {
 		for _, x := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14} {
@@ -112,7 +130,7 @@ func BenchmarkOldSlice(b *testing.B) {
 	}
 }
 
-func BenchmarkOldCount(b *testing.B) {
+func BenchmarkCountOld(b *testing.B) {
 	b.ReportAllocs()
 	for range b.N {
 		for x := 1; x <= 14; x++ {
@@ -258,9 +276,10 @@ func BenchmarkOf(b *testing.B) {
 	}
 }
 
-func BenchmarkOfSlice(b *testing.B) {
+func BenchmarkSlice(b *testing.B) {
 	slice := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range xiter.OfSlice(slice) {
 			i += x
@@ -268,6 +287,153 @@ func BenchmarkOfSlice(b *testing.B) {
 		for x := range xiter.OfSlice(slice) {
 			i += x
 		}
+	}
+	if i != b.N*15*14 {
+		panic(fmt.Errorf("Expected i = %d, got %d", b.N*15*14, i))
+	}
+}
+
+func BenchmarkSliceOpt(b *testing.B) {
+	slice := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for x := range OfSliceOpt(slice) {
+			i += x
+		}
+		for x := range OfSliceOpt(slice) {
+			i += x
+		}
+	}
+	if i != b.N*15*14 {
+		panic(fmt.Errorf("Expected i = %d, got %d", b.N*15*14, i))
+	}
+}
+
+func BenchmarkSliceSpecializedOpt(b *testing.B) {
+	slice := []Int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
+	b.ReportAllocs()
+	i := Int32(0)
+	for range b.N {
+		for x := range OfSliceSpecializedOpt(slice) {
+			i += x
+		}
+		for x := range OfSliceSpecializedOpt(slice) {
+			i += x
+		}
+	}
+	if i != Int32(b.N*15*14) {
+		panic(fmt.Errorf("Expected i = %d, got %d", b.N*15*14, i))
+	}
+}
+
+func BenchmarkSliceSpecialized(b *testing.B) {
+	slice := []Int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
+	b.ReportAllocs()
+	i := Int32(0)
+	for range b.N {
+		for x := range OfSlice(slice) {
+			i += x
+		}
+		for x := range OfSlice(slice) {
+			i += x
+		}
+	}
+	if i != Int32(b.N*15*14) {
+		panic(fmt.Errorf("Expected i = %d, got %d", b.N*15*14, i))
+	}
+}
+
+func BenchmarkSliceSpecializedChecked(b *testing.B) {
+	slice := []Int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
+	b.ReportAllocs()
+	i := Int32(0)
+	for range b.N {
+		for x := range CheckSeq(OfSlice(slice)) {
+			i += x
+		}
+		for x := range CheckSeq(OfSlice(slice)) {
+			i += x
+		}
+	}
+	if i != Int32(b.N*15*14) {
+		panic(fmt.Errorf("Expected i = %d, got %d", b.N*15*14, i))
+	}
+}
+
+func OfSliceOpt[T any, S ~[]T](s S) xiter.Seq[T] {
+	return func(yield func(T) bool) {
+		for _, v := range s {
+			if !yield(v) {
+				return
+			}
+		}
+		return
+	}
+}
+
+// OfSliceSpecializedOpt returns a Seq over the elements of s.
+// It is equivalent to range s with the index ignored.
+func OfSliceSpecializedOpt(s []Int32) Seq {
+	return func(yield func(Int32) bool) {
+		for _, v := range s {
+			if !yield(v) {
+				return
+			}
+		}
+		return
+	}
+}
+
+// OfSlice returns a Seq over the elements of s. It is equivalent to
+// range s with the index ignored.
+func OfSlice(s []Int32) Seq {
+	return V2(OfSliceIndex(s))
+}
+
+func V2(seq Seq2) Seq {
+	return func(yield func(Int32) bool) {
+		seq(func(v1 int, v2 Int32) bool {
+			return yield(v2)
+		})
+	}
+}
+
+// OfSliceIndex returns a Seq over the elements of s. It is equivalent
+// to range s.
+func OfSliceIndex(s []Int32) Seq2 {
+	return func(yield func(int, Int32) bool) {
+		for i, v := range s {
+			if !yield(i, v) {
+				return
+			}
+		}
+		return
+	}
+}
+
+func BenchmarkSliceCheck(b *testing.B) {
+	slice := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for x := range Check(xiter.OfSlice(slice)) {
+			i += x
+		}
+		for x := range Check(xiter.OfSlice(slice)) {
+			i += x
+		}
+	}
+	if i != b.N*15*14 {
+		panic(fmt.Errorf("Expected i = %d, got %d", b.N*15*14, i))
+	}
+}
+
+func BenchmarkDoAllOld(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		t1.DoAll(func(x Int32) bool { i += int(x); return true })
+		t2.DoAll(func(x Int32) bool { i += int(x); return true })
 	}
 }
 
@@ -282,6 +448,7 @@ func BenchmarkDoAll(b *testing.B) {
 		}
 	}
 }
+
 func BenchmarkDoAll2(b *testing.B) {
 	b.ReportAllocs()
 	for range b.N {
@@ -290,6 +457,18 @@ func BenchmarkDoAll2(b *testing.B) {
 		}
 		for x, y := range t2.DoAll2 {
 			i += int(x) + len(y.s)
+		}
+	}
+}
+
+func BenchmarkDoAllCheck(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		for x := range Check(t1.DoAllFunc()) {
+			i += int(x)
+		}
+		for x := range Check(t2.DoAllFunc()) {
+			i += int(x)
 		}
 	}
 }
@@ -331,6 +510,24 @@ func BenchmarkLimit(b *testing.B) {
 			i += int(x)
 		}
 		for x := range xiter.Limit(t2.DoAllFunc(), t2Len/2) {
+			i += int(x)
+		}
+	}
+}
+
+func BenchmarkLimitCheck(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		for x := range Check(xiter.Limit(t1.DoAllFunc(), t1Len/2)) {
+			i += int(x)
+		}
+		for x := range Check(xiter.Limit(t2.DoAllFunc(), t2Len/2)) {
+			i += int(x)
+		}
+		for x := range Check(xiter.Limit(t1.DoAllFunc(), t1Len/2)) {
+			i += int(x)
+		}
+		for x := range Check(xiter.Limit(t2.DoAllFunc(), t2Len/2)) {
 			i += int(x)
 		}
 	}
@@ -383,6 +580,42 @@ func BenchmarkSkipSpecialized(b *testing.B) {
 			i += int(x)
 		}
 		for x := range Skip(t2.DoAllFunc(), t2Len/2) {
+			i += int(x)
+		}
+	}
+}
+
+func BenchmarkSkipChecked(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		for x := range Check(xiter.Skip(t1.DoAllFunc(), t1Len/2)) {
+			i += int(x)
+		}
+		for x := range Check(xiter.Skip(t2.DoAllFunc(), t2Len/2)) {
+			i += int(x)
+		}
+		for x := range Check(xiter.Skip(t1.DoAllFunc(), t1Len/2)) {
+			i += int(x)
+		}
+		for x := range Check(xiter.Skip(t2.DoAllFunc(), t2Len/2)) {
+			i += int(x)
+		}
+	}
+}
+
+func BenchmarkSkipSpecializedChecked(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		for x := range CheckSeq(Skip(t1.DoAllFunc(), t1Len/2)) {
+			i += int(x)
+		}
+		for x := range CheckSeq(Skip(t2.DoAllFunc(), t2Len/2)) {
+			i += int(x)
+		}
+		for x := range CheckSeq(Skip(t1.DoAllFunc(), t1Len/2)) {
+			i += int(x)
+		}
+		for x := range CheckSeq(Skip(t2.DoAllFunc(), t2Len/2)) {
 			i += int(x)
 		}
 	}
@@ -494,6 +727,23 @@ func BenchmarkEqual(b *testing.B) {
 	}
 }
 
+func TestCheck(t *testing.T) {
+	i := 0
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("Saw panic %v", r)
+		} else {
+			t.Error("Wanted to see a failure")
+		}
+	}()
+	for x := range Check(t1.DoAllTwice) {
+		i += int(x)
+		if i > 4*9 {
+			break
+		}
+	}
+}
+
 func TestZips(t *testing.T) {
 	if !xiter.EqualFunc(
 		xiter.Zip(t1.DoAllFunc(), t2.DoAllFunc()),
@@ -523,6 +773,7 @@ func TestZips(t *testing.T) {
 
 // local copy, specialized
 type Seq func(yield func(Int32) bool)
+type Seq2 func(yield func(int, Int32) bool)
 
 // from proposal itself, does this avoid allocations?
 func Concat[V any](seqs ...xiter.Seq[V]) xiter.Seq[V] {
@@ -535,6 +786,19 @@ func Concat[V any](seqs ...xiter.Seq[V]) xiter.Seq[V] {
 			}
 		}
 		return
+	}
+}
+
+func Check[V any](forall xiter.Seq[V]) xiter.Seq[V] {
+	return func(body func(V) bool) {
+		ret := true
+		forall(func(v V) bool {
+			if !ret {
+				panic("Iterator access after exit")
+			}
+			ret = body(v)
+			return ret
+		})
 	}
 }
 
@@ -667,6 +931,19 @@ func Skip(forall Seq, n int) Seq {
 				return true
 			}
 			return body(v)
+		})
+	}
+}
+
+func CheckSeq(forall Seq) Seq {
+	return func(body func(Int32) bool) {
+		ret := true
+		forall(func(v Int32) bool {
+			if !ret {
+				panic("Iterator access after exit")
+			}
+			ret = body(v)
+			return ret
 		})
 	}
 }

@@ -344,6 +344,40 @@ func BenchmarkSliceSpecialized(b *testing.B) {
 	}
 }
 
+var gslice = []Int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
+
+func BenchmarkSliceSpecializedOptX(b *testing.B) {
+	slice := gslice
+	i := Int32(0)
+	fi := func(x Int32) bool {
+		i += x
+		return true
+	}
+	for range b.N {
+		OfSliceSpecializedOpt(slice)(fi)
+		OfSliceSpecializedOpt(slice)(fi)
+	}
+	if i != Int32(b.N*15*14) {
+		panic(fmt.Errorf("Expected i = %d, got %d", b.N*15*14, i))
+	}
+}
+
+func BenchmarkSliceSpecializedX(b *testing.B) {
+	slice := gslice
+	i := Int32(0)
+	fi := func(x Int32) bool {
+		i += x
+		return true
+	}
+	for range b.N {
+		OfSlice(slice)(fi)
+		OfSlice(slice)(fi)
+	}
+	if i != Int32(b.N*15*14) {
+		panic(fmt.Errorf("Expected i = %d, got %d", b.N*15*14, i))
+	}
+}
+
 func BenchmarkSliceSpecializedChecked(b *testing.B) {
 	slice := []Int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
 	b.ReportAllocs()

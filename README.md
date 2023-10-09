@@ -6,11 +6,16 @@ This is for benchmarking and performance research of an initial implementation o
  - in some cases, tweaking the support function implementations for better performance.
  - are there any performance penalties associated with generics in this code?
 
-To run this code, you need to use the a recent version of the the Go development tip (for 1.22) and `GOEXPERIMENT=range`
+To run this code, you need to use a recent version of the Go development tip (for 1.22) and `GOEXPERIMENT=range`
 ```bash
 $ go install golang.org/dl/gotip@latest
 $ gotip download
-$ GOEXPERIMENT=range gotip build/run/test/etc ... 
+$ GOEXPERIMENT=range gotip test -bench=Bench iter_test.go 
+```
+
+`tiny_test.go` does not need the experiment, but it exists only to explore compiler behavior:
+```
+$ go test -bench=Bench tiny_test.go 
 ```
 
 To obtain best performance with the current inliner, you'll need to increase the inlining threshold (in `src/cmd/compile/internal/inline/inl.go`) from 80 to 125.  One goal of this work is to create a test case for revisions to the inliner heuristics to improve performance of code containing functions that use (call) their function parameters.
@@ -19,6 +24,7 @@ Results so far:
  - so far there have been NO proportional-to-sequence-length allocations
  - very happily, the allocation count is often zero
  - the inliner will need adjusting
+ - there's at least one "inline anomaly" where doing an "easy" inline by hand unblocks a lot more inlining.
  - `sync.OnceFunc` performs "too many" allocations (5)
  - `Pull` is generally very expensive
  - the two-sequence support functions can be (tediously) rewritten to use only one call to `Pull`

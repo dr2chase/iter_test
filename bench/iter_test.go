@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build goexperiment.rangefunc
+
 package iter_test
 
 import (
@@ -10,6 +12,7 @@ import (
 	"github.com/dr2chase/iter"
 	"math"
 	"os"
+	_ "runtime"
 	"sync"
 	"testing"
 )
@@ -94,12 +97,6 @@ var i int
 // 	// (Find|All|FindAll)?(String)?(Submatch)?(Index)?
 
 // }
-
-func BenchmarkNothing(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
-	}
-}
 
 func BenchmarkSliceOld(b *testing.B) {
 	b.ReportAllocs()

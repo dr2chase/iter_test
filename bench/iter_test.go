@@ -9,7 +9,8 @@ package iter_test
 import (
 	"deedles.dev/xiter"
 	"fmt"
-	"github.com/dr2chase/iter"
+	"github.com/dr2chase/iterbench"
+	"iter"
 	"math"
 	"os"
 	_ "runtime"
@@ -17,14 +18,14 @@ import (
 	"testing"
 )
 
-var t1, t2 *iter.T[Int32, sstring]
+var t1, t2 *iterbench.T[Int32, sstring]
 var t1Len, t2Len int
 
 var m1 map[int]string = make(map[int]string)
 var m2 map[int]string = make(map[int]string)
 
 func TestMain(m *testing.M) {
-	t1 = &iter.T[Int32, sstring]{}
+	t1 = &iterbench.T[Int32, sstring]{}
 	t1.Insert(1, sstring{"ant"})
 	t1.Insert(2, sstring{"bat"})
 	t1.Insert(3, sstring{"cat"})
@@ -40,7 +41,7 @@ func TestMain(m *testing.M) {
 	t1.Insert(13, sstring{"moi"})
 	t1.Insert(14, sstring{"noi"})
 
-	t2 = &iter.T[Int32, sstring]{}
+	t2 = &iterbench.T[Int32, sstring]{}
 	t2.Insert(21, sstring{"auntie"})
 	t2.Insert(22, sstring{"batty"})
 	t2.Insert(23, sstring{"catty"})
@@ -344,6 +345,7 @@ func BenchmarkSliceSpecialized(b *testing.B) {
 var gslice = []Int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
 
 func BenchmarkSliceSpecializedOptX(b *testing.B) {
+	b.ReportAllocs()
 	slice := gslice
 	i := Int32(0)
 	fi := func(x Int32) bool {
@@ -360,6 +362,7 @@ func BenchmarkSliceSpecializedOptX(b *testing.B) {
 }
 
 func BenchmarkSliceSpecializedX(b *testing.B) {
+	b.ReportAllocs()
 	slice := gslice
 	i := Int32(0)
 	fi := func(x Int32) bool {
@@ -746,6 +749,46 @@ func BenchmarkZipSpecialized1Pull(b *testing.B) {
 	}
 }
 
+func BenchmarkZipGo(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		for x := range ZipGo(t1.DoAllFunc(), t2.DoAllFunc()) {
+			i += int(x.V1)
+			i += int(x.V2)
+		}
+	}
+}
+
+func BenchmarkZipGo1Pull(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		for x := range ZipGo1Pull(t1.DoAllFunc(), t2.DoAllFunc()) {
+			i += int(x.V1)
+			i += int(x.V2)
+		}
+	}
+}
+
+func BenchmarkZipCoro(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		for x := range ZipCoro(t1.DoAllFunc(), t2.DoAllFunc()) {
+			i += int(x.V1)
+			i += int(x.V2)
+		}
+	}
+}
+
+func BenchmarkZipCoro1Pull(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		for x := range ZipCoro1Pull(t1.DoAllFunc(), t2.DoAllFunc()) {
+			i += int(x.V1)
+			i += int(x.V2)
+		}
+	}
+}
+
 func BenchmarkEqual(b *testing.B) {
 	b.ReportAllocs()
 	for range b.N {
@@ -779,7 +822,7 @@ func TestZips(t *testing.T) {
 	if !xiter.EqualFunc(
 		xiter.Zip(t1.DoAllFunc(), t2.DoAllFunc()),
 		ZipSpecialized1Pull(t1.DoAllFunc(), t2.DoAllFunc()),
-		func(z1 xiter.Zipped[Int32, Int32], z2 Zipped) bool {
+		func(z1 xiter.Zipped[Int32, Int32], z2 ZippedSpecialized) bool {
 			return z1.V1 == z2.V1 && z1.V2 == z2.V2 && z1.OK1 == z2.OK1 && z1.OK2 == z2.OK2
 		}) {
 		t.Error("wanted equal 1")
@@ -787,7 +830,7 @@ func TestZips(t *testing.T) {
 	if !xiter.EqualFunc(
 		xiter.Zip(t1.DoAllFunc(), xiter.Skip(t2.DoAllFunc(), 1)),
 		ZipSpecialized1Pull(t1.DoAllFunc(), Skip(t2.DoAllFunc(), 1)),
-		func(z1 xiter.Zipped[Int32, Int32], z2 Zipped) bool {
+		func(z1 xiter.Zipped[Int32, Int32], z2 ZippedSpecialized) bool {
 			return z1.V1 == z2.V1 && z1.V2 == z2.V2 && z1.OK1 == z2.OK1 && z1.OK2 == z2.OK2
 		}) {
 		t.Error("wanted equal 2")
@@ -795,7 +838,7 @@ func TestZips(t *testing.T) {
 	if !xiter.EqualFunc(
 		xiter.Zip(xiter.Skip(t1.DoAllFunc(), 1), t2.DoAllFunc()),
 		ZipSpecialized1Pull(Skip(t1.DoAllFunc(), 1), t2.DoAllFunc()),
-		func(z1 xiter.Zipped[Int32, Int32], z2 Zipped) bool {
+		func(z1 xiter.Zipped[Int32, Int32], z2 ZippedSpecialized) bool {
 			return z1.V1 == z2.V1 && z1.V2 == z2.V2 && z1.OK1 == z2.OK1 && z1.OK2 == z2.OK2
 		}) {
 		t.Error("wanted equal 3")
@@ -873,7 +916,7 @@ func MergeFuncSpecialized(seq1, seq2 Seq, compare func(Int32, Int32) int) Seq {
 }
 
 // Zipped holds values from an iteration of a Seq returned by [Zip].
-type Zipped struct {
+type ZippedSpecialized struct {
 	V1  Int32
 	OK1 bool
 
@@ -883,15 +926,15 @@ type Zipped struct {
 
 // Zip returns a new Seq that yields the values of seq1 and seq2
 // simultaneously.
-func ZipSpecialized(seq1 Seq, seq2 Seq) xiter.Seq[Zipped] {
-	return func(yield func(Zipped) bool) {
+func ZipSpecialized(seq1 Seq, seq2 Seq) xiter.Seq[ZippedSpecialized] {
+	return func(yield func(ZippedSpecialized) bool) {
 		p1, stop := Pull(seq1)
 		defer stop()
 		p2, stop := Pull(seq2)
 		defer stop()
 
 		for {
-			var val Zipped
+			var val ZippedSpecialized
 			val.V1, val.OK1 = p1()
 			val.V2, val.OK2 = p2()
 			if (!val.OK1 && !val.OK2) || !yield(val) {
@@ -903,13 +946,13 @@ func ZipSpecialized(seq1 Seq, seq2 Seq) xiter.Seq[Zipped] {
 
 // Zip returns a new Seq that yields the values of seq1 and seq2
 // simultaneously.
-func ZipSpecializedND(seq1 Seq, seq2 Seq) xiter.Seq[Zipped] {
-	return func(yield func(Zipped) bool) {
+func ZipSpecializedND(seq1 Seq, seq2 Seq) xiter.Seq[ZippedSpecialized] {
+	return func(yield func(ZippedSpecialized) bool) {
 		p1, stop1 := PullND(seq1)
 		p2, stop2 := PullND(seq2)
 
 		for {
-			var val Zipped
+			var val ZippedSpecialized
 			val.V1, val.OK1 = p1()
 			val.V2, val.OK2 = p2()
 			if (!val.OK1 && !val.OK2) || !yield(val) {
@@ -923,13 +966,13 @@ func ZipSpecializedND(seq1 Seq, seq2 Seq) xiter.Seq[Zipped] {
 
 // Zip returns a new Seq that yields the values of seq1 and seq2
 // simultaneously.
-func ZipSpecialized1Pull(seq1 Seq, seq2 Seq) xiter.Seq[Zipped] {
-	return func(body func(Zipped) bool) {
+func ZipSpecialized1Pull(seq1 Seq, seq2 Seq) xiter.Seq[ZippedSpecialized] {
+	return func(body func(ZippedSpecialized) bool) {
 		p2, stop2 := Pull(seq2)
 		defer stop2()
 		done := false
 		for v := range seq1 {
-			var val Zipped
+			var val ZippedSpecialized
 			val.V1, val.OK1 = v, true
 			val.V2, val.OK2 = p2()
 			if !body(val) {
@@ -943,7 +986,122 @@ func ZipSpecialized1Pull(seq1 Seq, seq2 Seq) xiter.Seq[Zipped] {
 		// seq1 is exhausted
 		for v2, ok2 := p2(); ok2; v2, ok2 = p2() {
 			var v1 Int32
-			var val Zipped
+			var val ZippedSpecialized
+			val.V1, val.OK1 = v1, false
+			val.V2, val.OK2 = v2, true
+			if !body(val) {
+				return
+			}
+		}
+		return
+	}
+}
+
+// Zipped holds values from an iteration of a Seq returned by [Zip].
+type Zipped[T1, T2 any] struct {
+	V1  T1
+	OK1 bool
+
+	V2  T2
+	OK2 bool
+}
+
+// Zip returns a new Seq that yields the values of seq1 and seq2
+// simultaneously.
+func ZipGo[T1, T2 any](seq1 iter.Seq[T1], seq2 iter.Seq[T2]) iter.Seq[Zipped[T1, T2]] {
+	return func(yield func(Zipped[T1, T2]) bool) {
+		p1, stop := xiter.GoPull(xiter.Seq[T1](seq1))
+		defer stop()
+		p2, stop := xiter.GoPull(xiter.Seq[T2](seq2))
+		defer stop()
+
+		for {
+			var val Zipped[T1, T2]
+			val.V1, val.OK1 = p1()
+			val.V2, val.OK2 = p2()
+			if (!val.OK1 && !val.OK2) || !yield(val) {
+				return
+			}
+		}
+	}
+}
+
+// Zip returns a new Seq that yields the values of seq1 and seq2
+// simultaneously.
+func ZipCoro[T1, T2 any](seq1 iter.Seq[T1], seq2 iter.Seq[T2]) iter.Seq[Zipped[T1, T2]] {
+	return func(yield func(Zipped[T1, T2]) bool) {
+		p1, stop := iter.Pull(seq1)
+		defer stop()
+		p2, stop := iter.Pull(seq2)
+		defer stop()
+
+		for {
+			var val Zipped[T1, T2]
+			val.V1, val.OK1 = p1()
+			val.V2, val.OK2 = p2()
+			if (!val.OK1 && !val.OK2) || !yield(val) {
+				return
+			}
+		}
+	}
+}
+
+// Zip returns a new Seq that yields the values of seq1 and seq2
+// simultaneously.
+func ZipGo1Pull[T1, T2 any](seq1 iter.Seq[T1], seq2 iter.Seq[T2]) iter.Seq[Zipped[T1, T2]] {
+	return func(body func(Zipped[T1, T2]) bool) {
+		p2, stop2 := xiter.GoPull(xiter.Seq[T2](seq2))
+		defer stop2()
+		done := false
+		for v := range seq1 {
+			var val Zipped[T1, T2]
+			val.V1, val.OK1 = v, true
+			val.V2, val.OK2 = p2()
+			if !body(val) {
+				done = true
+				break
+			}
+		}
+		if done {
+			return
+		}
+		// seq1 is exhausted
+		for v2, ok2 := p2(); ok2; v2, ok2 = p2() {
+			var v1 T1
+			var val Zipped[T1, T2]
+			val.V1, val.OK1 = v1, false
+			val.V2, val.OK2 = v2, true
+			if !body(val) {
+				return
+			}
+		}
+		return
+	}
+}
+
+// Zip returns a new Seq that yields the values of seq1 and seq2
+// simultaneously.
+func ZipCoro1Pull[T1, T2 any](seq1 iter.Seq[T1], seq2 iter.Seq[T2]) iter.Seq[Zipped[T1, T2]] {
+	return func(body func(Zipped[T1, T2]) bool) {
+		p2, stop2 := iter.Pull(seq2)
+		defer stop2()
+		done := false
+		for v := range seq1 {
+			var val Zipped[T1, T2]
+			val.V1, val.OK1 = v, true
+			val.V2, val.OK2 = p2()
+			if !body(val) {
+				done = true
+				break
+			}
+		}
+		if done {
+			return
+		}
+		// seq1 is exhausted
+		for v2, ok2 := p2(); ok2; v2, ok2 = p2() {
+			var v1 T1
+			var val Zipped[T1, T2]
 			val.V1, val.OK1 = v1, false
 			val.V2, val.OK2 = v2, true
 			if !body(val) {

@@ -18,11 +18,16 @@ import (
 	"testing"
 )
 
+// The benchmarks here compare various ways of iterating.
+// The iterations tend to run over 14 things, twice, because reasons.
+
 var t1, t2 *iterbench.T[Int32, sstring]
 var t1Len, t2Len int
 
 var m1 map[int]string = make(map[int]string)
 var m2 map[int]string = make(map[int]string)
+
+var i, sink int
 
 func TestMain(m *testing.M) {
 	t1 = &iterbench.T[Int32, sstring]{}
@@ -70,36 +75,36 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-var i int
+// BenchmarkCountOld measures a plain 3-clause for loop updating a LOCAL variable.
+func BenchmarkCountOldILocal(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for x := 1; x <= 14; x++ {
+			i += x
+		}
+		for x := 1; x <= 14; x++ {
+			i += x
+		}
+	}
+	sink = i
+}
 
-// for range 100_000 {
-// 	i += doAll(t1, t2)
-// 	i += doAll2(t1, t2)
+// BenchmarkCountOld measures a plain 3-clause for loop updating a GLOBAL variable.
+func BenchmarkCountOldIGlobal(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		for x := 1; x <= 14; x++ {
+			i += x
+		}
+		for x := 1; x <= 14; x++ {
+			i += x
+		}
+	}
+}
 
-// 	/// 61898 - xiter
-// 	// map2, reduce2
-// 	// mergefunc2, limit2, filter2
-// 	// equal, equal2, equalfunc, equalfunc2
-// 	// zip2
-
-// 	// 61899 - slices
-// 	// all, backward, values, append, collect
-// 	// sorted, sortedfunc
-
-// 	// 61900 - maps
-// 	// all, keys, values, insert, collect
-
-// 	// 61901 - bytes, strings
-// 	// lines, bytes, runes
-// 	// splitseq, runesplitseq
-// 	// splitafterseq, fieldsseq, fieldsfuncseq
-
-// 	// 61902 - regexp
-// 	// (Find|All|FindAll)?(String)?(Submatch)?(Index)?
-
-// }
-
-func BenchmarkSliceOld(b *testing.B) {
+// BenchmarkSliceOldILocal measures an old range-of-slice loop updating a LOCAL variable.
+func BenchmarkSliceOldILocal(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
 	for range b.N {
@@ -116,6 +121,7 @@ func BenchmarkSliceOld(b *testing.B) {
 
 }
 
+// BenchmarkSliceOld measures an old range-of-slice loop updating a GLOBAL variable.
 func BenchmarkSliceOldIGlobal(b *testing.B) {
 	b.ReportAllocs()
 	for range b.N {
@@ -123,152 +129,6 @@ func BenchmarkSliceOldIGlobal(b *testing.B) {
 			i += x
 		}
 		for _, x := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14} {
-			i += x
-		}
-	}
-}
-
-func BenchmarkCountOld(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
-		for x := 1; x <= 14; x++ {
-			i += x
-		}
-		for x := 1; x <= 14; x++ {
-			i += x
-		}
-	}
-}
-
-func BenchmarkMapKeys(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
-		for x := range xiter.MapKeys(m1) {
-			i += x
-		}
-		for x := range xiter.MapKeys(m2) {
-			i += x
-		}
-	}
-}
-
-func BenchmarkMapValues(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
-		for x := range xiter.MapValues(m1) {
-			i += len(x)
-		}
-		for x := range xiter.MapValues(m2) {
-			i += len(x)
-		}
-	}
-}
-
-func BenchmarkOfMap(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
-		for k, v := range xiter.OfMap(m1) {
-			i += k + len(v)
-		}
-		for k, v := range xiter.OfMap(m2) {
-			i += k + len(v)
-		}
-	}
-}
-
-func BenchmarkToPairOfMap(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
-		for p := range xiter.ToPair(xiter.OfMap(m1)) {
-			k, v := p.V1, p.V2
-			i += k + len(v)
-		}
-		for p := range xiter.ToPair(xiter.OfMap(m2)) {
-			k, v := p.V1, p.V2
-			i += k + len(v)
-		}
-	}
-}
-
-func BenchmarkFromPair(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
-		for k, v := range xiter.FromPair(xiter.ToPair(t1.DoAll2Func())) {
-			i += int(k) + len(v.s)
-		}
-		for k, v := range xiter.FromPair(xiter.ToPair(t2.DoAll2Func())) {
-			i += int(k) + len(v.s)
-		}
-	}
-}
-
-func BenchmarkBytes(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
-		for x := range xiter.Bytes("abcdefghijklmn") {
-			i += int(x - 'a' + 1)
-		}
-		for x := range xiter.Bytes("abcdefghijklmn") {
-			i += int(x - 'a' + 1)
-		}
-	}
-}
-
-func BenchmarkRunes(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
-		for x := range xiter.Runes("🚀🚁🚂🚃🚄🚅🚆🚇🚈🚉🚊🚋🚌🚍") {
-			i += int(x - '🚀' + 1)
-		}
-		for x := range xiter.Runes("🚀🚁🚂🚃🚄🚅🚆🚇🚈🚉🚊🚋🚌🚍") {
-			i += int(x - '🚀' + 1)
-		}
-	}
-}
-
-func BenchmarkStringSplitEmpty(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
-		for x := range xiter.StringSplit("🚀🚁🚂🚃🚄🚅🚆🚇🚈🚉🚊🚋🚌🚍", "") {
-			i += int(x[0])
-		}
-		for x := range xiter.StringSplit("🚀🚁🚂🚃🚄🚅🚆🚇🚈🚉🚊🚋🚌🚍", "") {
-			i += int(x[0])
-		}
-	}
-}
-
-func BenchmarkStringSplit(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
-		for x := range xiter.StringSplit("🚀.🚁.🚂.🚃.🚄.🚅.🚆.🚇.🚈.🚉.🚊.🚋.🚌.🚍", ".") {
-			i += int(x[0])
-		}
-		for x := range xiter.StringSplit("🚀 🚁 🚂 🚃 🚄 🚅 🚆 🚇 🚈 🚉 🚊 🚋 🚌 🚍", " ") {
-			i += int(x[0])
-		}
-	}
-}
-
-func BenchmarkGenerate(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
-		for x := range xiter.Limit(xiter.Generate(1, 1), t1Len) {
-			i += x
-		}
-		for x := range xiter.Limit(xiter.Generate(1, 1), t2Len) {
-			i += x
-		}
-	}
-}
-
-func BenchmarkOf(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
-		for x := range xiter.Of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14) {
-			i += x
-		}
-		for x := range xiter.Of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14) {
 			i += x
 		}
 	}
@@ -462,6 +322,141 @@ func BenchmarkSliceCheck(b *testing.B) {
 		panic(fmt.Errorf("Expected i = %d, got %d", b.N*15*14, i))
 	}
 }
+
+func BenchmarkMapKeys(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		for x := range xiter.MapKeys(m1) {
+			i += x
+		}
+		for x := range xiter.MapKeys(m2) {
+			i += x
+		}
+	}
+}
+
+func BenchmarkMapValues(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		for x := range xiter.MapValues(m1) {
+			i += len(x)
+		}
+		for x := range xiter.MapValues(m2) {
+			i += len(x)
+		}
+	}
+}
+
+func BenchmarkOfMap(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		for k, v := range xiter.OfMap(m1) {
+			i += k + len(v)
+		}
+		for k, v := range xiter.OfMap(m2) {
+			i += k + len(v)
+		}
+	}
+}
+
+func BenchmarkToPairOfMap(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		for p := range xiter.ToPair(xiter.OfMap(m1)) {
+			k, v := p.V1, p.V2
+			i += k + len(v)
+		}
+		for p := range xiter.ToPair(xiter.OfMap(m2)) {
+			k, v := p.V1, p.V2
+			i += k + len(v)
+		}
+	}
+}
+
+func BenchmarkFromPair(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		for k, v := range xiter.FromPair(xiter.ToPair(t1.DoAll2Func())) {
+			i += int(k) + len(v.s)
+		}
+		for k, v := range xiter.FromPair(xiter.ToPair(t2.DoAll2Func())) {
+			i += int(k) + len(v.s)
+		}
+	}
+}
+
+func BenchmarkBytes(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		for x := range xiter.Bytes("abcdefghijklmn") {
+			i += int(x - 'a' + 1)
+		}
+		for x := range xiter.Bytes("abcdefghijklmn") {
+			i += int(x - 'a' + 1)
+		}
+	}
+}
+
+func BenchmarkRunes(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		for x := range xiter.Runes("🚀🚁🚂🚃🚄🚅🚆🚇🚈🚉🚊🚋🚌🚍") {
+			i += int(x - '🚀' + 1)
+		}
+		for x := range xiter.Runes("🚀🚁🚂🚃🚄🚅🚆🚇🚈🚉🚊🚋🚌🚍") {
+			i += int(x - '🚀' + 1)
+		}
+	}
+}
+
+func BenchmarkStringSplitEmpty(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		for x := range xiter.StringSplit("🚀🚁🚂🚃🚄🚅🚆🚇🚈🚉🚊🚋🚌🚍", "") {
+			i += int(x[0])
+		}
+		for x := range xiter.StringSplit("🚀🚁🚂🚃🚄🚅🚆🚇🚈🚉🚊🚋🚌🚍", "") {
+			i += int(x[0])
+		}
+	}
+}
+
+func BenchmarkStringSplit(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		for x := range xiter.StringSplit("🚀.🚁.🚂.🚃.🚄.🚅.🚆.🚇.🚈.🚉.🚊.🚋.🚌.🚍", ".") {
+			i += int(x[0])
+		}
+		for x := range xiter.StringSplit("🚀 🚁 🚂 🚃 🚄 🚅 🚆 🚇 🚈 🚉 🚊 🚋 🚌 🚍", " ") {
+			i += int(x[0])
+		}
+	}
+}
+
+func BenchmarkGenerate(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		for x := range xiter.Limit(xiter.Generate(1, 1), t1Len) {
+			i += x
+		}
+		for x := range xiter.Limit(xiter.Generate(1, 1), t2Len) {
+			i += x
+		}
+	}
+}
+
+func BenchmarkOf(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		for x := range xiter.Of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14) {
+			i += x
+		}
+		for x := range xiter.Of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14) {
+			i += x
+		}
+	}
+}
+
 
 func BenchmarkDoAllOld(b *testing.B) {
 	b.ReportAllocs()

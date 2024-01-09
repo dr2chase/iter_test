@@ -1,4 +1,2 @@
-deedles.dev/xiter v0.0.0-20230830220649-e4b695c6b9dd h1:Up1Emh4q+jlxVGj1nXXpQAWVoxch9w91R4UDnfkB1xE=
-deedles.dev/xiter v0.0.0-20230830220649-e4b695c6b9dd/go.mod h1:Mu30hAcR8t/9Be92uLQx2oxc+/svIXUWtygWiCMH8cU=
-deedles.dev/xiter v0.0.0-20231004194426-4941480a28e1 h1:lLc891UwR6CnaGK6xCo1tm81AjOpoIbLMua6mWJFTFY=
-deedles.dev/xiter v0.0.0-20231004194426-4941480a28e1/go.mod h1:aXKiiocLQWr1VYiEvF38imQ3o2VP1uzRTIWFB4qmAgw=
+github.com/dr2chase/xiter v0.0.0-20240109155857-ecced2cdb6b0 h1:PJZhx+hbvcJ/I/OyXayzO1nZAwmMPrBTDhQXDc3K3AE=
+github.com/dr2chase/xiter v0.0.0-20240109155857-ecced2cdb6b0/go.mod h1:aXKiiocLQWr1VYiEvF38imQ3o2VP1uzRTIWFB4qmAgw=

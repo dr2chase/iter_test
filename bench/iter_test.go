@@ -155,15 +155,16 @@ func BenchmarkOf(b *testing.B) {
 	sink += i
 }
 
-// BenchmarkSliceOldILocal measures an old range-of-slice loop updating a LOCAL variable.
+// / BenchmarkSliceOldILocalV measures an old range-of-slice loop updating a LOCAL variable.
 func BenchmarkSliceOldILocal(b *testing.B) {
+	slice := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
 	b.ReportAllocs()
 	i := 0
 	for range b.N {
-		for _, x := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14} {
+		for _, x := range slice {
 			i += x
 		}
-		for _, x := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14} {
+		for _, x := range slice {
 			i += x
 		}
 	}
@@ -175,12 +176,13 @@ func BenchmarkSliceOldILocal(b *testing.B) {
 
 // BenchmarkSliceOldIGlobal measures an old range-of-slice loop updating a GLOBAL variable.
 func BenchmarkSliceOldIGlobal(b *testing.B) {
+	slice := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
 	b.ReportAllocs()
 	for range b.N {
-		for _, x := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14} {
+		for _, x := range slice {
 			global += x
 		}
-		for _, x := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14} {
+		for _, x := range slice {
 			global += x
 		}
 	}
@@ -491,6 +493,21 @@ func BenchmarkToPairOfMap(b *testing.B) {
 		for p := range xiter.ToPair(xiter.OfMap(m2)) {
 			k, v := p.V1, p.V2
 			i += k + len(v)
+		}
+	}
+	sink += i
+}
+
+func BenchmarkOldBytes(b *testing.B) {
+	slice := []byte("abcdefghijklmn")
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for _, x := range slice {
+			i += int(x - 'a' + 1)
+		}
+		for _, x := range slice {
+			i += int(x - 'a' + 1)
 		}
 	}
 	sink += i

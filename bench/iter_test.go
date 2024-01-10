@@ -21,13 +21,13 @@ import (
 // The benchmarks here compare various ways of iterating.
 // The iterations tend to run over 14 things, twice, because reasons.
 
-var t1, t2 *iterbench.T[Int32, sstring]
+var t1, t2, t1Small, t2Small *iterbench.T[Int32, sstring]
 var t1Len, t2Len int
 
 var m1 map[int]string = make(map[int]string)
 var m2 map[int]string = make(map[int]string)
 
-var i, sink int
+var global, sink int
 
 func TestMain(m *testing.M) {
 	t1 = &iterbench.T[Int32, sstring]{}
@@ -38,6 +38,7 @@ func TestMain(m *testing.M) {
 	t1.Insert(5, sstring{"emu"})
 	t1.Insert(6, sstring{"fox"})
 	t1.Insert(7, sstring{"gnu"})
+	t1Small = t1.Copy()
 	t1.Insert(8, sstring{"hen"})
 	t1.Insert(9, sstring{"imp"})
 	t1.Insert(10, sstring{"jay"})
@@ -54,6 +55,7 @@ func TestMain(m *testing.M) {
 	t2.Insert(25, sstring{"emu-like"})
 	t2.Insert(26, sstring{"foxy"})
 	t2.Insert(27, sstring{"gnu-like"})
+	t2Small = t2.Copy()
 	t2.Insert(28, sstring{"henny"})
 	t2.Insert(29, sstring{"impish"})
 	t2.Insert(30, sstring{"jaylike"})
@@ -72,6 +74,25 @@ func TestMain(m *testing.M) {
 		m2[int(k)] = v.s
 	}
 
+	if t1.Size() != 14 {
+		panic("Expected t1 Size == 14")
+	}
+	if t2.Size() != 14 {
+		panic("Expected t2 Size == 14")
+	}
+	if t1Small.Size() != 7 {
+		panic("Expected t1Small Size == 7")
+	}
+	if t2Small.Size() != 7 {
+		panic("Expected t2Small Size == 7")
+	}
+	if len(m1) != 14 {
+		panic("Expected m1 len == 14")
+	}
+	if len(m2) != 14 {
+		panic("Expected m2 len == 14")
+	}
+
 	os.Exit(m.Run())
 }
 
@@ -87,7 +108,7 @@ func BenchmarkCountOldILocal(b *testing.B) {
 			i += x
 		}
 	}
-	sink = i
+	sink += i
 }
 
 // BenchmarkCountOld measures a plain 3-clause for loop updating a GLOBAL variable.
@@ -95,12 +116,43 @@ func BenchmarkCountOldIGlobal(b *testing.B) {
 	b.ReportAllocs()
 	for range b.N {
 		for x := 1; x <= 14; x++ {
-			i += x
+			global += x
 		}
 		for x := 1; x <= 14; x++ {
+			global += x
+		}
+	}
+	sink += global
+}
+
+// BenchmarkLimitGenerate measures Limit(Generate ...) updating a local variable.
+func BenchmarkLimitGenerate(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for x := range xiter.Limit(xiter.Generate(1, 1), t1Len) {
+			i += x
+		}
+		for x := range xiter.Limit(xiter.Generate(1, 1), t2Len) {
 			i += x
 		}
 	}
+	sink += i
+}
+
+// BenchmarkOf measures xiter.Of updating a local variable.
+func BenchmarkOf(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for x := range xiter.Of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14) {
+			i += x
+		}
+		for x := range xiter.Of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14) {
+			i += x
+		}
+	}
+	sink += i
 }
 
 // BenchmarkSliceOldILocal measures an old range-of-slice loop updating a LOCAL variable.
@@ -118,22 +170,24 @@ func BenchmarkSliceOldILocal(b *testing.B) {
 	if i != b.N*15*14 {
 		panic(fmt.Errorf("Expected i = %d, got %d", b.N*15*14, i))
 	}
-
+	sink += i
 }
 
-// BenchmarkSliceOld measures an old range-of-slice loop updating a GLOBAL variable.
+// BenchmarkSliceOldIGlobal measures an old range-of-slice loop updating a GLOBAL variable.
 func BenchmarkSliceOldIGlobal(b *testing.B) {
 	b.ReportAllocs()
 	for range b.N {
 		for _, x := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14} {
-			i += x
+			global += x
 		}
 		for _, x := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14} {
-			i += x
+			global += x
 		}
 	}
+	sink += global
 }
 
+// BenchmarkSlice measures xiter.OfSlice (generic), updating a local.
 func BenchmarkSlice(b *testing.B) {
 	slice := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
 	b.ReportAllocs()
@@ -151,6 +205,7 @@ func BenchmarkSlice(b *testing.B) {
 	}
 }
 
+// BenchmarkSliceOpt measures a hand-optimized generic slice iteration, updating a local.
 func BenchmarkSliceOpt(b *testing.B) {
 	slice := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
 	b.ReportAllocs()
@@ -168,23 +223,26 @@ func BenchmarkSliceOpt(b *testing.B) {
 	}
 }
 
-func BenchmarkSliceSpecializedOpt(b *testing.B) {
-	slice := []Int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
+// BenchmarkSliceOpt measures a hand-inlined generic slice iteration, updating a local.
+func BenchmarkSliceInlineV2(b *testing.B) {
+	slice := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
 	b.ReportAllocs()
-	i := Int32(0)
+	i := 0
 	for range b.N {
-		for x := range OfSliceSpecializedOpt(slice) {
+		for x := range OfSliceInlineV2(slice) {
 			i += x
 		}
-		for x := range OfSliceSpecializedOpt(slice) {
+		for x := range OfSliceInlineV2(slice) {
 			i += x
 		}
 	}
-	if i != Int32(b.N*15*14) {
+	if i != b.N*15*14 {
 		panic(fmt.Errorf("Expected i = %d, got %d", b.N*15*14, i))
 	}
 }
 
+// BenchmarkSliceSpecialized measures a non-generic slice iteration copied from xiter.OfSlice etc, updating a local.
+// I.e., do we pay any cost for generics here?
 func BenchmarkSliceSpecialized(b *testing.B) {
 	slice := []Int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
 	b.ReportAllocs()
@@ -202,8 +260,30 @@ func BenchmarkSliceSpecialized(b *testing.B) {
 	}
 }
 
+// BenchmarkSliceSpecializedOpt measures a hand-optimized non-generic slice iteration, updating a local.
+// I.e., do we pay any cost for generics here?
+func BenchmarkSliceSpecializedOpt(b *testing.B) {
+	slice := []Int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
+	b.ReportAllocs()
+	i := Int32(0)
+	for range b.N {
+		for x := range OfSliceSpecializedOpt(slice) {
+			i += x
+		}
+		for x := range OfSliceSpecializedOpt(slice) {
+			i += x
+		}
+	}
+	if i != Int32(b.N*15*14) {
+		panic(fmt.Errorf("Expected i = %d, got %d", b.N*15*14, i))
+	}
+}
+
 var gslice = []Int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
 
+// BenchmarkSliceSpecializedOptX measures a hand-optimized non-generic slice iteration, updating a local.
+// It calls the loop body explicitly instead of relying on the range-function transformation.
+// Does this have any effect on what we see?
 func BenchmarkSliceSpecializedOptX(b *testing.B) {
 	b.ReportAllocs()
 	slice := gslice
@@ -221,6 +301,9 @@ func BenchmarkSliceSpecializedOptX(b *testing.B) {
 	}
 }
 
+// BenchmarkSliceSpecializedX measures a non-generic slice iteration, updating a local.
+// It calls the loop body explicitly instead of relying on the range-function transformation.
+// Does this have any effect on what we see?
 func BenchmarkSliceSpecializedX(b *testing.B) {
 	b.ReportAllocs()
 	slice := gslice
@@ -238,6 +321,25 @@ func BenchmarkSliceSpecializedX(b *testing.B) {
 	}
 }
 
+// BenchmarkSliceChecked wraps the xiter.OfSlice range function in a Check function.
+func BenchmarkSliceChecked(b *testing.B) {
+	slice := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for x := range Check(xiter.OfSlice(slice)) {
+			i += x
+		}
+		for x := range Check(xiter.OfSlice(slice)) {
+			i += x
+		}
+	}
+	if i != b.N*15*14 {
+		panic(fmt.Errorf("Expected i = %d, got %d", b.N*15*14, i))
+	}
+}
+
+// BenchmarkSliceSpecializedChecked wraps the (specialized) OfSlice range function in a Check function.
 func BenchmarkSliceSpecializedChecked(b *testing.B) {
 	slice := []Int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
 	b.ReportAllocs()
@@ -263,6 +365,17 @@ func OfSliceOpt[T any, S ~[]T](s S) xiter.Seq[T] {
 			}
 		}
 		return
+	}
+}
+
+// OfSliceInlineV2 returns a Seq over the elements of s. It is equivalent to
+// range s with the index ignored.  Call to V2 has been hand-inlined.
+func OfSliceInlineV2[T any, S ~[]T](s S) xiter.Seq[T] {
+	seq := xiter.OfSliceIndex(s)
+	return func(yield func(T) bool) {
+		seq(func(v1 int, v2 T) bool {
+			return yield(v2)
+		})
 	}
 }
 
@@ -306,49 +419,25 @@ func OfSliceIndex(s []Int32) Seq2 {
 	}
 }
 
-func BenchmarkSliceCheck(b *testing.B) {
-	slice := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
+// BenchmarkOldMap measures old-style map iteration, updating a local.
+func BenchmarkOldMap(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
 	for range b.N {
-		for x := range Check(xiter.OfSlice(slice)) {
-			i += x
+		for k, v := range m1 {
+			i += k + len(v)
 		}
-		for x := range Check(xiter.OfSlice(slice)) {
-			i += x
+		for k, v := range m2 {
+			i += k + len(v)
 		}
 	}
-	if i != b.N*15*14 {
-		panic(fmt.Errorf("Expected i = %d, got %d", b.N*15*14, i))
-	}
+	sink += i
 }
 
-func BenchmarkMapKeys(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
-		for x := range xiter.MapKeys(m1) {
-			i += x
-		}
-		for x := range xiter.MapKeys(m2) {
-			i += x
-		}
-	}
-}
-
-func BenchmarkMapValues(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
-		for x := range xiter.MapValues(m1) {
-			i += len(x)
-		}
-		for x := range xiter.MapValues(m2) {
-			i += len(x)
-		}
-	}
-}
-
+// BenchmarkOldMap measures xiter.OfMap iteration, updating a local.
 func BenchmarkOfMap(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for k, v := range xiter.OfMap(m1) {
 			i += k + len(v)
@@ -357,10 +446,43 @@ func BenchmarkOfMap(b *testing.B) {
 			i += k + len(v)
 		}
 	}
+	sink += i
 }
 
+// BenchmarkMapKeys measures xiter.MapKeys iteration, updating a local.
+func BenchmarkMapKeys(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for x := range xiter.MapKeys(m1) {
+			i += x
+		}
+		for x := range xiter.MapKeys(m2) {
+			i += x
+		}
+	}
+	sink += i
+}
+
+// BenchmarkMapValues measures xiter.MapValues iteration, updating a local.
+func BenchmarkMapValues(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for x := range xiter.MapValues(m1) {
+			i += len(x)
+		}
+		for x := range xiter.MapValues(m2) {
+			i += len(x)
+		}
+	}
+	sink += i
+}
+
+// BenchmarkToPairOfMap measures xiter.ToPair(xiter.OfMap(...)) iteration, updating a local
 func BenchmarkToPairOfMap(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for p := range xiter.ToPair(xiter.OfMap(m1)) {
 			k, v := p.V1, p.V2
@@ -371,22 +493,12 @@ func BenchmarkToPairOfMap(b *testing.B) {
 			i += k + len(v)
 		}
 	}
-}
-
-func BenchmarkFromPair(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
-		for k, v := range xiter.FromPair(xiter.ToPair(t1.DoAll2Func())) {
-			i += int(k) + len(v.s)
-		}
-		for k, v := range xiter.FromPair(xiter.ToPair(t2.DoAll2Func())) {
-			i += int(k) + len(v.s)
-		}
-	}
+	sink += i
 }
 
 func BenchmarkBytes(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range xiter.Bytes("abcdefghijklmn") {
 			i += int(x - 'a' + 1)
@@ -395,10 +507,26 @@ func BenchmarkBytes(b *testing.B) {
 			i += int(x - 'a' + 1)
 		}
 	}
+	sink += i
+}
+
+func BenchmarkOldRunes(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for _, x := range "🚀🚁🚂🚃🚄🚅🚆🚇🚈🚉🚊🚋🚌🚍" {
+			i += int(x - '🚀' + 1)
+		}
+		for _, x := range "🚀🚁🚂🚃🚄🚅🚆🚇🚈🚉🚊🚋🚌🚍" {
+			i += int(x - '🚀' + 1)
+		}
+	}
+	sink += i
 }
 
 func BenchmarkRunes(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range xiter.Runes("🚀🚁🚂🚃🚄🚅🚆🚇🚈🚉🚊🚋🚌🚍") {
 			i += int(x - '🚀' + 1)
@@ -407,10 +535,12 @@ func BenchmarkRunes(b *testing.B) {
 			i += int(x - '🚀' + 1)
 		}
 	}
+	sink += i
 }
 
 func BenchmarkStringSplitEmpty(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range xiter.StringSplit("🚀🚁🚂🚃🚄🚅🚆🚇🚈🚉🚊🚋🚌🚍", "") {
 			i += int(x[0])
@@ -419,10 +549,12 @@ func BenchmarkStringSplitEmpty(b *testing.B) {
 			i += int(x[0])
 		}
 	}
+	sink += i
 }
 
 func BenchmarkStringSplit(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range xiter.StringSplit("🚀.🚁.🚂.🚃.🚄.🚅.🚆.🚇.🚈.🚉.🚊.🚋.🚌.🚍", ".") {
 			i += int(x[0])
@@ -431,43 +563,22 @@ func BenchmarkStringSplit(b *testing.B) {
 			i += int(x[0])
 		}
 	}
+	sink += i
 }
-
-func BenchmarkGenerate(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
-		for x := range xiter.Limit(xiter.Generate(1, 1), t1Len) {
-			i += x
-		}
-		for x := range xiter.Limit(xiter.Generate(1, 1), t2Len) {
-			i += x
-		}
-	}
-}
-
-func BenchmarkOf(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
-		for x := range xiter.Of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14) {
-			i += x
-		}
-		for x := range xiter.Of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14) {
-			i += x
-		}
-	}
-}
-
 
 func BenchmarkDoAllOld(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		t1.DoAll(func(x Int32) bool { i += int(x); return true })
 		t2.DoAll(func(x Int32) bool { i += int(x); return true })
 	}
+	sink += i
 }
 
 func BenchmarkDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range t1.DoAllFunc() {
 			i += int(x)
@@ -476,10 +587,12 @@ func BenchmarkDoAll(b *testing.B) {
 			i += int(x)
 		}
 	}
+	sink += i
 }
 
 func BenchmarkDoAll2(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x, y := range t1.DoAll2 {
 			i += int(x) + len(y.s)
@@ -488,10 +601,12 @@ func BenchmarkDoAll2(b *testing.B) {
 			i += int(x) + len(y.s)
 		}
 	}
+	sink += i
 }
 
 func BenchmarkDoAllCheck(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range Check(t1.DoAllFunc()) {
 			i += int(x)
@@ -500,10 +615,26 @@ func BenchmarkDoAllCheck(b *testing.B) {
 			i += int(x)
 		}
 	}
+	sink += i
 }
 
-func BenchmarkMap(b *testing.B) {
+func BenchmarkFromPair(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for k, v := range xiter.FromPair(xiter.ToPair(t1.DoAll2Func())) {
+			i += int(k) + len(v.s)
+		}
+		for k, v := range xiter.FromPair(xiter.ToPair(t2.DoAll2Func())) {
+			i += int(k) + len(v.s)
+		}
+	}
+	sink += i
+}
+
+func BenchmarkMapDoAll(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range xiter.Map(t1.DoAllFunc(), func(j Int32) float64 { return float64(j) }) {
 			i += int(math.Exp(x))
@@ -512,10 +643,12 @@ func BenchmarkMap(b *testing.B) {
 			i += int(math.Exp(x))
 		}
 	}
+	sink += i
 }
 
-func BenchmarkFilter(b *testing.B) {
+func BenchmarkFilterDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range xiter.Filter(t1.DoAllFunc(), func(j Int32) bool { return j&1 == 0 }) {
 			i += int(x)
@@ -524,10 +657,12 @@ func BenchmarkFilter(b *testing.B) {
 			i += int(x)
 		}
 	}
+	sink += i
 }
 
-func BenchmarkLimit(b *testing.B) {
+func BenchmarkLimitDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range xiter.Limit(t1.DoAllFunc(), t1Len/2) {
 			i += int(x)
@@ -542,10 +677,12 @@ func BenchmarkLimit(b *testing.B) {
 			i += int(x)
 		}
 	}
+	sink += i
 }
 
-func BenchmarkLimitCheck(b *testing.B) {
+func BenchmarkLimitCheckDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range Check(xiter.Limit(t1.DoAllFunc(), t1Len/2)) {
 			i += int(x)
@@ -560,26 +697,32 @@ func BenchmarkLimitCheck(b *testing.B) {
 			i += int(x)
 		}
 	}
+	sink += i
 }
 
-func BenchmarkReduce(b *testing.B) {
+func BenchmarkReduceDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		i += xiter.Reduce(t1.DoAllFunc(), 0, func(total int, v Int32) int { return total + int(v) })
 		i += xiter.Reduce(t2.DoAllFunc(), 0, func(total int, v Int32) int { return total + int(v) })
 	}
+	sink += i
 }
 
-func BenchmarkFold(b *testing.B) {
+func BenchmarkFoldDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		i += int(xiter.Fold(t1.DoAllFunc(), func(total Int32, v Int32) Int32 { return total + v }))
 		i += int(xiter.Fold(t2.DoAllFunc(), func(total Int32, v Int32) Int32 { return total + v }))
 	}
+	sink += i
 }
 
-func BenchmarkSkip(b *testing.B) {
+func BenchmarkSkipDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range xiter.Skip(t1.DoAllFunc(), t1Len/2) {
 			i += int(x)
@@ -594,10 +737,12 @@ func BenchmarkSkip(b *testing.B) {
 			i += int(x)
 		}
 	}
+	sink += i
 }
 
-func BenchmarkSkipSpecialized(b *testing.B) {
+func BenchmarkSkipSpecializedDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range Skip(t1.DoAllFunc(), t1Len/2) {
 			i += int(x)
@@ -612,10 +757,12 @@ func BenchmarkSkipSpecialized(b *testing.B) {
 			i += int(x)
 		}
 	}
+	sink += i
 }
 
-func BenchmarkSkipChecked(b *testing.B) {
+func BenchmarkSkipCheckedDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range Check(xiter.Skip(t1.DoAllFunc(), t1Len/2)) {
 			i += int(x)
@@ -630,10 +777,12 @@ func BenchmarkSkipChecked(b *testing.B) {
 			i += int(x)
 		}
 	}
+	sink += i
 }
 
-func BenchmarkSkipSpecializedChecked(b *testing.B) {
+func BenchmarkSkipSpecializedCheckedDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range CheckSeq(Skip(t1.DoAllFunc(), t1Len/2)) {
 			i += int(x)
@@ -648,10 +797,12 @@ func BenchmarkSkipSpecializedChecked(b *testing.B) {
 			i += int(x)
 		}
 	}
+	sink += i
 }
 
-func BenchmarkSkipMethod(b *testing.B) {
+func BenchmarkSkipMethodDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range Skip(t1.DoAll, t1Len/2) {
 			i += int(x)
@@ -666,126 +817,152 @@ func BenchmarkSkipMethod(b *testing.B) {
 			i += int(x)
 		}
 	}
+	sink += i
 }
 
-func BenchmarkConcat(b *testing.B) {
+func BenchmarkConcatDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range xiter.Concat(t1.DoAllFunc(), t2.DoAllFunc()) {
 			i += int(x)
 		}
 	}
+	sink += i
 }
 
-func BenchmarkConcatRSC(b *testing.B) {
+func BenchmarkConcatRSCDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range Concat(t1.DoAllFunc(), t2.DoAllFunc()) {
 			i += int(x)
 		}
 	}
+	sink += i
 }
 
-func BenchmarkMergeFunc(b *testing.B) {
+func BenchmarkMergeFuncDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range xiter.MergeFunc(t1.DoAllFunc(), t2.DoAllFunc(), compare) {
 			i += int(x)
 		}
 	}
+	sink += i
 }
 
-func BenchmarkMergeFuncSpecialized(b *testing.B) {
+func BenchmarkMergeFuncSpecializedDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range MergeFuncSpecialized(t1.DoAllFunc(), t2.DoAllFunc(), compare) {
 			i += int(x)
 		}
 	}
+	sink += i
 }
 
-func BenchmarkZip(b *testing.B) {
+func BenchmarkZipDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range xiter.Zip(t1.DoAllFunc(), t2.DoAllFunc()) {
 			i += int(x.V1)
 			i += int(x.V2)
 		}
 	}
+	sink += i
 }
 
-func BenchmarkZipSpecialized(b *testing.B) {
+func BenchmarkZipSpecializedDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range ZipSpecialized(t1.DoAllFunc(), t2.DoAllFunc()) {
 			i += int(x.V1)
 			i += int(x.V2)
 		}
 	}
+	sink += i
 }
 
-func BenchmarkZipSpecializedND(b *testing.B) {
+func BenchmarkZipSpecializedNDDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range ZipSpecializedND(t1.DoAllFunc(), t2.DoAllFunc()) {
 			i += int(x.V1)
 			i += int(x.V2)
 		}
 	}
+	sink += i
 }
 
-func BenchmarkZipSpecialized1Pull(b *testing.B) {
+func BenchmarkZipSpecialized1PullDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range ZipSpecialized1Pull(t1.DoAllFunc(), t2.DoAllFunc()) {
 			i += int(x.V1)
 			i += int(x.V2)
 		}
 	}
+	sink += i
 }
 
-func BenchmarkZipGo(b *testing.B) {
+func BenchmarkZipGoDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range ZipGo(t1.DoAllFunc(), t2.DoAllFunc()) {
 			i += int(x.V1)
 			i += int(x.V2)
 		}
 	}
+	sink += i
 }
 
-func BenchmarkZipGo1Pull(b *testing.B) {
+func BenchmarkZipGo1PullDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range ZipGo1Pull(t1.DoAllFunc(), t2.DoAllFunc()) {
 			i += int(x.V1)
 			i += int(x.V2)
 		}
 	}
+	sink += i
 }
 
-func BenchmarkZipCoro(b *testing.B) {
+func BenchmarkZipCoroDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range ZipCoro(t1.DoAllFunc(), t2.DoAllFunc()) {
 			i += int(x.V1)
 			i += int(x.V2)
 		}
 	}
+	sink += i
 }
 
-func BenchmarkZipCoro1Pull(b *testing.B) {
+func BenchmarkZipCoro1PullDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		for x := range ZipCoro1Pull(t1.DoAllFunc(), t2.DoAllFunc()) {
 			i += int(x.V1)
 			i += int(x.V2)
 		}
 	}
+	sink += i
 }
 
-func BenchmarkEqual(b *testing.B) {
+func BenchmarkEqualDoAll(b *testing.B) {
 	b.ReportAllocs()
+	i := 0
 	for range b.N {
 		if !xiter.Equal(t1.DoAllFunc(), t1.DoAllFunc()) {
 			panic("equal failure")
@@ -794,6 +971,21 @@ func BenchmarkEqual(b *testing.B) {
 			panic("unequal failure")
 		}
 	}
+	sink += i
+}
+
+func BenchmarkEqualDoAllSmall(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		if !xiter.Equal(t1Small.DoAllFunc(), t1Small.DoAllFunc()) {
+			panic("equal failure")
+		}
+		if xiter.Equal(t1Small.DoAllFunc(), t2Small.DoAllFunc()) {
+			panic("unequal failure")
+		}
+	}
+	sink += i
 }
 
 func TestCheck(t *testing.T) {

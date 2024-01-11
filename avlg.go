@@ -265,6 +265,9 @@ func (t *T[K, D]) VisitInOrder(f func(K, D)) {
 func (t *T[K, D]) DoAll2(yield func(k K, d D) bool) {
 	t.root.doAll2(yield)
 }
+func (t *T[K, D]) DoAll2Flat(yield func(k K, d D) bool) {
+	t.root.doAll2Flat(yield)
+}
 
 func (t *T[K, D]) DoAll(yield func(k K) bool) {
 	t.root.doAll(yield)
@@ -502,6 +505,40 @@ func (n *node[K, D]) doAll2(yield func(k K, d D) bool) bool {
 		return true
 	}
 	return n.left.doAll2(yield) && yield(n.key, n.data) && n.right.doAll2(yield)
+}
+
+func (n *node[K, D]) doAll2Flat(yield func(k K, d D) bool) {
+	if n == nil {
+		return
+	}
+	var stack [100]*node[K, D]
+	var top = 0
+
+	for n.left != nil {
+		stack[top] = n
+		n = n.left
+		top++
+	}
+
+	for {
+		// n.left == nil, stack[top-1] is parent.
+		if !yield(n.key, n.data) {
+			return
+		}
+		if n.right != nil {
+			n = n.right
+			for n.left != nil {
+				stack[top] = n
+				n = n.left
+				top++
+			}
+		} else if top == 0 {
+			return
+		} else {
+			top--
+			n = stack[top]
+		}
+	}
 }
 
 func (n *node[K, D]) doAll(yield func(k K) bool) bool {

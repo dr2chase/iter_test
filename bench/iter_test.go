@@ -621,6 +621,32 @@ func BenchmarkDoAll2(b *testing.B) {
 	sink += i
 }
 
+func BenchmarkDoAll2Flat(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for x, y := range t1.DoAll2Flat {
+			i += int(x) + len(y.s)
+		}
+		for x, y := range t2.DoAll2Flat {
+			i += int(x) + len(y.s)
+		}
+	}
+	sink += i
+}
+
+func BenchmarkDoAll2FlatEqualZip(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		if !xiter.Equal(xiter.V1(t1.DoAll2), xiter.V1(t1.DoAll2Flat)) {
+			panic("Should have been equal")
+		}
+		if !xiter.EqualFunc(xiter.V2(t1.DoAll2), xiter.V2(t1.DoAll2Flat), func(x, y sstring) bool { return x == y }) {
+			panic("Should have been equal")
+		}
+	}
+}
+
 func BenchmarkDoAllCheck(b *testing.B) {
 	b.ReportAllocs()
 	i := 0

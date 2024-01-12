@@ -14,7 +14,7 @@ package iter_test
 //                     │  tiny.log   │
 //                     │   sec/op    │
 // SliceOld-8            5.885n ± 1%  <--- the goal
-// Slice-8               40.78n ± 1%  <--- didn't full inline; SliceOf(s) == V2(OfSliceIndex(s))
+// Slice-8               40.78n ± 1%  <--- didn't fully inline; SliceOf(s) == V2(OfSliceIndex(s))
 // SliceCheck-8          31.18n ± 0%  <--- adding check wrapper led to full inlining (???)
 // SliceOf-8             22.53n ± 4%  <--- full inlining, but one inline mark and i Addrtaken
 // SliceOfCheck-8        92.08n ± 3%  <--- method value closure passed to Check forces allocation

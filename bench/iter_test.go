@@ -96,7 +96,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// BenchmarkCountOld measures a plain 3-clause for loop updating a LOCAL variable.
+// BenchmarkCountOldILocal measures a plain 3-clause for loop updating a LOCAL variable.
 func BenchmarkCountOldILocal(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -111,7 +111,7 @@ func BenchmarkCountOldILocal(b *testing.B) {
 	sink += i
 }
 
-// BenchmarkCountOld measures a plain 3-clause for loop updating a GLOBAL variable.
+// BenchmarkCountOldIGlobal measures a plain 3-clause for loop updating a GLOBAL variable.
 func BenchmarkCountOldIGlobal(b *testing.B) {
 	b.ReportAllocs()
 	for range b.N {
@@ -120,6 +120,22 @@ func BenchmarkCountOldIGlobal(b *testing.B) {
 		}
 		for x := 1; x <= 14; x++ {
 			global += x
+		}
+	}
+	sink += global
+}
+
+// BenchmarkCountOldIPGlobal measures a plain 3-clause for loop updating through a pointer
+// (Was it the address formation that cost?)
+func BenchmarkCountOldIPGlobal(b *testing.B) {
+	b.ReportAllocs()
+	pglobal := &global
+	for range b.N {
+		for x := 1; x <= 14; x++ {
+			*pglobal += x
+		}
+		for x := 1; x <= 14; x++ {
+			*pglobal += x
 		}
 	}
 	sink += global
@@ -155,7 +171,7 @@ func BenchmarkOf(b *testing.B) {
 	sink += i
 }
 
-// / BenchmarkSliceOldILocalV measures an old range-of-slice loop updating a LOCAL variable.
+// / BenchmarkSliceOldILocal measures an old range-of-slice loop updating a LOCAL variable.
 func BenchmarkSliceOldILocal(b *testing.B) {
 	slice := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
 	b.ReportAllocs()
@@ -225,7 +241,7 @@ func BenchmarkSliceOpt(b *testing.B) {
 	}
 }
 
-// BenchmarkSliceOpt measures a hand-inlined generic slice iteration, updating a local.
+// BenchmarkSliceInlineV2 measures a hand-inlined generic slice iteration, updating a local.
 func BenchmarkSliceInlineV2(b *testing.B) {
 	slice := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
 	b.ReportAllocs()
@@ -498,6 +514,7 @@ func BenchmarkToPairOfMap(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkOldBytes is a baseline, using plain old for loops.
 func BenchmarkOldBytes(b *testing.B) {
 	slice := []byte("abcdefghijklmn")
 	b.ReportAllocs()
@@ -513,6 +530,7 @@ func BenchmarkOldBytes(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkBytes measures the performance of xiter.Bytes
 func BenchmarkBytes(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -527,6 +545,7 @@ func BenchmarkBytes(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkOldRunes is a baseline, using plain old for loops, applied to strings of emoji.
 func BenchmarkOldRunes(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -541,6 +560,7 @@ func BenchmarkOldRunes(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkRunes measures the performance of xiter.Runes
 func BenchmarkRunes(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -555,6 +575,8 @@ func BenchmarkRunes(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkStringSplitEmpty measures the performance of xiter.StringSplit with
+// an empty separator, applied to the same string of runes as BenchmarkRunes.
 func BenchmarkStringSplitEmpty(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -569,6 +591,9 @@ func BenchmarkStringSplitEmpty(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkStringSplit measures the performance of xiter.StringSplit with
+// a "." separator, applied to the same string of runes as BenchmarkRunes but
+// separated by "." .
 func BenchmarkStringSplit(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -583,6 +608,7 @@ func BenchmarkStringSplit(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkDoAllOld is a baseline, that calls a recursive tree walk visit on a supplied function.
 func BenchmarkDoAllOld(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -593,6 +619,7 @@ func BenchmarkDoAllOld(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkDoAll measures the cost of iterating a closure returned by a function.
 func BenchmarkDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -607,6 +634,7 @@ func BenchmarkDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkDoAll2 measures the cost of iterating a method value closure.
 func BenchmarkDoAll2(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -621,6 +649,7 @@ func BenchmarkDoAll2(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkDoAll2 measures the cost of iterating a method value closure that does a non-recursive visit.
 func BenchmarkDoAll2Flat(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -635,6 +664,9 @@ func BenchmarkDoAll2Flat(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkDoAll2FlatEqualZip primarily checks that the flat iterator is correct
+// (at least for these inputs), but also measures the cost of a complex composition
+// of iterator transformers.
 func BenchmarkDoAll2FlatEqualZip(b *testing.B) {
 	b.ReportAllocs()
 	for range b.N {
@@ -647,6 +679,8 @@ func BenchmarkDoAll2FlatEqualZip(b *testing.B) {
 	}
 }
 
+// BenchmarkDoAllCheck measures the cost of the recursive iterator when wrapped in a "Check" function
+// (not to be confused with the automatically inserted checking).
 func BenchmarkDoAllCheck(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -661,6 +695,7 @@ func BenchmarkDoAllCheck(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkFromPair measures the cost of `for k, v := range xiter.FromPair(xiter.ToPair(t1.DoAll2Func()))`
 func BenchmarkFromPair(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -675,6 +710,8 @@ func BenchmarkFromPair(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkMapDoAll measures the cost of wrapping a recursive walk in a xiter.Map.
+// The body of this loop is unfortunately expensive.
 func BenchmarkMapDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -689,6 +726,7 @@ func BenchmarkMapDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkFilterDoAll measures the cost of wrapping a recursive walk in xiter.Filter
 func BenchmarkFilterDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -703,6 +741,7 @@ func BenchmarkFilterDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkLimitDoAll measures the cost of wrapping a recursive walk in xiter.Limit.
 func BenchmarkLimitDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -723,6 +762,7 @@ func BenchmarkLimitDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkLimitCheckDoAll is the same as BenchmarkLimitDoAll, but wrapped in a call to Check.
 func BenchmarkLimitCheckDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -743,6 +783,7 @@ func BenchmarkLimitCheckDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkReduceDoAll measures the cost of xiter.Reduce applied to DoAllFunc()
 func BenchmarkReduceDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -753,6 +794,7 @@ func BenchmarkReduceDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkFoldDoAll measures the cost of xiter.Fold applied to DoAllFunc()
 func BenchmarkFoldDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -763,6 +805,7 @@ func BenchmarkFoldDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkSkipDoAll measures the cost of xiter.Skip applied to DoAllFunc()
 func BenchmarkSkipDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -783,6 +826,8 @@ func BenchmarkSkipDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkSkipSpecializedDoAll measures the cost of a type-specific Skip applied to DoAllFunc().
+// Generics make little or no difference in the cost.
 func BenchmarkSkipSpecializedDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -803,6 +848,7 @@ func BenchmarkSkipSpecializedDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkSkipCheckedDoAll wraps xiter.Skip applied to DoAllFunc() in a Check.
 func BenchmarkSkipCheckedDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -823,6 +869,7 @@ func BenchmarkSkipCheckedDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkSkipSpecializedCheckedDoAll is a non-generic version of BenchmarkSkipCheckedDoAll
 func BenchmarkSkipSpecializedCheckedDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -843,6 +890,8 @@ func BenchmarkSkipSpecializedCheckedDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkSkipMethodDoAll measures the cost of xiter.Skip applied to t.DoAll (a method closure)
+// That is, exactly like BenchmarkSkipDoAll but a method value closure instead.
 func BenchmarkSkipMethodDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -863,6 +912,7 @@ func BenchmarkSkipMethodDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkConcatDoAll measures the cost of xiter.Concat
 func BenchmarkConcatDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -874,6 +924,7 @@ func BenchmarkConcatDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkConcatRSCDoAll measures the cost of the version of Concat in the proposal
 func BenchmarkConcatRSCDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -885,6 +936,9 @@ func BenchmarkConcatRSCDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkMergeFuncDoAll measures the cost of xiter.MergeFunc applied
+// to a pair of DoAllFunc() iterators.
+// Note that xiter.MergeFunc was rewritten into a 1-Pull coroutine form.
 func BenchmarkMergeFuncDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -896,6 +950,8 @@ func BenchmarkMergeFuncDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkMergeFuncSpecializedDoAll measures the cost of a non-generic version of MergeFunc.
+// This is a flawed comparison because xiter.MergeFunc was rewritten into the 1-Pull coroutine form.
 func BenchmarkMergeFuncSpecializedDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -907,6 +963,7 @@ func BenchmarkMergeFuncSpecializedDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkZipDoAll measures xiter.Zip of a pair of tree.DoAllFunc()
 func BenchmarkZipDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -919,6 +976,7 @@ func BenchmarkZipDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkZipDoAll measures non-generic Zip of a pair of tree.DoAllFunc()
 func BenchmarkZipSpecializedDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -931,11 +989,13 @@ func BenchmarkZipSpecializedDoAll(b *testing.B) {
 	sink += i
 }
 
-func BenchmarkZipSpecializedNDDoAll(b *testing.B) {
+// BenchmarkZipSpecializedSODoAll measures non-generic Zip implemented using a Pull
+// with a fragile stop function (does not call sync.Once).
+func BenchmarkZipSpecializedSODoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
 	for range b.N {
-		for x := range ZipSpecializedND(t1.DoAllFunc(), t2.DoAllFunc()) {
+		for x := range ZipSpecializedSO(t1.DoAllFunc(), t2.DoAllFunc()) {
 			i += int(x.V1)
 			i += int(x.V2)
 		}
@@ -943,6 +1003,8 @@ func BenchmarkZipSpecializedNDDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkZipSpecialized1PullDoAll measures non-generic Zip rewritten to use only
+// one Pull iterator.
 func BenchmarkZipSpecialized1PullDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -955,7 +1017,8 @@ func BenchmarkZipSpecialized1PullDoAll(b *testing.B) {
 	sink += i
 }
 
-func BenchmarkZipGoDoAll(b *testing.B) {
+// BenchmarkZipGo2PullDoAll measures the cost of 2-pull goroutine generic Zip.
+func BenchmarkZipGo2PullDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
 	for range b.N {
@@ -967,6 +1030,7 @@ func BenchmarkZipGoDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkZipGo1PullDoAll measures the cost of 1-pull goroutine generic Zip.
 func BenchmarkZipGo1PullDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -979,7 +1043,8 @@ func BenchmarkZipGo1PullDoAll(b *testing.B) {
 	sink += i
 }
 
-func BenchmarkZipCoroDoAll(b *testing.B) {
+// BenchmarkZipCoro2PullDoAll measures the cost of 2-pull COroutine generic Zip
+func BenchmarkZipCoro2PullDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
 	for range b.N {
@@ -991,6 +1056,7 @@ func BenchmarkZipCoroDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkZipCoro2PullDoAll measures the cost of 1-pull COroutine generic Zip
 func BenchmarkZipCoro1PullDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -1003,6 +1069,9 @@ func BenchmarkZipCoro1PullDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkEqualDoAll measures the cost of generic Equal applied to a pair of DoAllFunc()
+// It runs on 4 iterators (an equality test and an inequality test) but should terminate quickly
+// on the inequalitytest.
 func BenchmarkEqualDoAll(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -1017,6 +1086,9 @@ func BenchmarkEqualDoAll(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkEqualDoAllSmall measures the cost of generic Equal applied to a pair of small DoAllFunc()
+// sequences.  This is to ensure that the allocations performed are not proportional to the length
+// of the iteration.
 func BenchmarkEqualDoAllSmall(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -1079,7 +1151,7 @@ func TestZips(t *testing.T) {
 type Seq func(yield func(Int32) bool)
 type Seq2 func(yield func(int, Int32) bool)
 
-// from proposal itself, does this avoid allocations?
+// Concat from proposal itself, does this avoid allocations?
 func Concat[V any](seqs ...xiter.Seq[V]) xiter.Seq[V] {
 	return func(yield func(V) bool) {
 		for _, seq := range seqs {
@@ -1093,6 +1165,7 @@ func Concat[V any](seqs ...xiter.Seq[V]) xiter.Seq[V] {
 	}
 }
 
+// Check converts a seq to one that Checks it is not called after a false return.
 func Check[V any](forall xiter.Seq[V]) xiter.Seq[V] {
 	return func(body func(V) bool) {
 		ret := true
@@ -1154,8 +1227,7 @@ type ZippedSpecialized struct {
 	OK2 bool
 }
 
-// Zip returns a new Seq that yields the values of seq1 and seq2
-// simultaneously.
+// ZipSpecialized is a non-generic Zip that uses 2 Pulls and ordinary goroutines.
 func ZipSpecialized(seq1 Seq, seq2 Seq) xiter.Seq[ZippedSpecialized] {
 	return func(yield func(ZippedSpecialized) bool) {
 		p1, stop := Pull(seq1)
@@ -1174,12 +1246,12 @@ func ZipSpecialized(seq1 Seq, seq2 Seq) xiter.Seq[ZippedSpecialized] {
 	}
 }
 
-// Zip returns a new Seq that yields the values of seq1 and seq2
-// simultaneously.
-func ZipSpecializedND(seq1 Seq, seq2 Seq) xiter.Seq[ZippedSpecialized] {
+// ZipSpecialized is a non-generic Zip that uses 2 PullSOs and ordinary goroutines.
+// PullSO is like pull but does not use sync.Once in its stop function.
+func ZipSpecializedSO(seq1 Seq, seq2 Seq) xiter.Seq[ZippedSpecialized] {
 	return func(yield func(ZippedSpecialized) bool) {
-		p1, stop1 := PullND(seq1)
-		p2, stop2 := PullND(seq2)
+		p1, stop1 := PullSO(seq1)
+		p2, stop2 := PullSO(seq2)
 
 		for {
 			var val ZippedSpecialized
@@ -1194,8 +1266,7 @@ func ZipSpecializedND(seq1 Seq, seq2 Seq) xiter.Seq[ZippedSpecialized] {
 	}
 }
 
-// Zip returns a new Seq that yields the values of seq1 and seq2
-// simultaneously.
+// ZipSpecialized1Pull is a non-generic Zip that uses 1 Pull and ordinary goroutines.
 func ZipSpecialized1Pull(seq1 Seq, seq2 Seq) xiter.Seq[ZippedSpecialized] {
 	return func(body func(ZippedSpecialized) bool) {
 		p2, stop2 := Pull(seq2)
@@ -1236,8 +1307,7 @@ type Zipped[T1, T2 any] struct {
 	OK2 bool
 }
 
-// Zip returns a new Seq that yields the values of seq1 and seq2
-// simultaneously.
+// ZipGo is a generic Zip using 2 xiter.GoPull (ordinary goroutines)
 func ZipGo[T1, T2 any](seq1 iter.Seq[T1], seq2 iter.Seq[T2]) iter.Seq[Zipped[T1, T2]] {
 	return func(yield func(Zipped[T1, T2]) bool) {
 		p1, stop := xiter.GoPull(xiter.Seq[T1](seq1))
@@ -1256,8 +1326,7 @@ func ZipGo[T1, T2 any](seq1 iter.Seq[T1], seq2 iter.Seq[T2]) iter.Seq[Zipped[T1,
 	}
 }
 
-// Zip returns a new Seq that yields the values of seq1 and seq2
-// simultaneously.
+// ZipGo is a generic Zip using 2 iter.Pull (faster coroutines)
 func ZipCoro[T1, T2 any](seq1 iter.Seq[T1], seq2 iter.Seq[T2]) iter.Seq[Zipped[T1, T2]] {
 	return func(yield func(Zipped[T1, T2]) bool) {
 		p1, stop := iter.Pull(seq1)
@@ -1276,8 +1345,7 @@ func ZipCoro[T1, T2 any](seq1 iter.Seq[T1], seq2 iter.Seq[T2]) iter.Seq[Zipped[T
 	}
 }
 
-// Zip returns a new Seq that yields the values of seq1 and seq2
-// simultaneously.
+// ZipGo1Pull is a generic Zip using 1 xiter.GoPull (ordinary goroutine)
 func ZipGo1Pull[T1, T2 any](seq1 iter.Seq[T1], seq2 iter.Seq[T2]) iter.Seq[Zipped[T1, T2]] {
 	return func(body func(Zipped[T1, T2]) bool) {
 		p2, stop2 := xiter.GoPull(xiter.Seq[T2](seq2))
@@ -1309,8 +1377,7 @@ func ZipGo1Pull[T1, T2 any](seq1 iter.Seq[T1], seq2 iter.Seq[T2]) iter.Seq[Zippe
 	}
 }
 
-// Zip returns a new Seq that yields the values of seq1 and seq2
-// simultaneously.
+// ZipCoro1Pull is a generic Zip using 1 iter.Pull (1 faster coroutine)
 func ZipCoro1Pull[T1, T2 any](seq1 iter.Seq[T1], seq2 iter.Seq[T2]) iter.Seq[Zipped[T1, T2]] {
 	return func(body func(Zipped[T1, T2]) bool) {
 		p2, stop2 := iter.Pull(seq2)
@@ -1400,7 +1467,7 @@ func Pull(seq Seq) (iter func() (Int32, bool), stop func()) {
 		})
 }
 
-func PullND(seq Seq) (func() (Int32, bool), func()) {
+func PullSO(seq Seq) (func() (Int32, bool), func()) {
 	next := make(chan struct{})
 	yield := make(chan Int32)
 	stop := func() {

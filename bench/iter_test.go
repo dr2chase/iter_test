@@ -1103,6 +1103,109 @@ func BenchmarkEqualDoAllSmall(b *testing.B) {
 	sink += i
 }
 
+// BenchmarkCountOldILocal measures a plain 3-clause for loop updating a LOCAL variable.
+func BenchmarkNestedCountOldILocal(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for x := 1; x <= 14; x++ {
+			for y := 1; y <= 14; y++ {
+				i += y
+			}
+		}
+	}
+	sink += i
+}
+
+// BenchmarkLimitGenerate measures Limit(Generate ...) updating a local variable.
+func BenchmarkNestedLimitGenerate(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for _ = range xiter.Limit(xiter.Generate(1, 1), t1Len) {
+			for x := range xiter.Limit(xiter.Generate(1, 1), t2Len) {
+				i += x
+			}
+		}
+	}
+	sink += i
+}
+
+// BenchmarkOf measures xiter.Of updating a local variable.
+func BenchmarkNestedOf(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for _ = range xiter.Of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14) {
+			for x := range xiter.Of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14) {
+				i += x
+			}
+		}
+	}
+	sink += i
+}
+
+// / BenchmarkSliceOldILocal measures an old range-of-slice loop updating a LOCAL variable.
+func BenchmarkNestedSliceOldILocal(b *testing.B) {
+	slice := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for _, _ = range slice {
+			for _, x := range slice {
+				i += x
+			}
+		}
+	}
+	sink += i
+}
+
+// BenchmarkSlice measures xiter.OfSlice (generic), updating a local.
+func BenchmarkNestedSlice(b *testing.B) {
+	slice := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for _ = range xiter.OfSlice(slice) {
+			for x := range xiter.OfSlice(slice) {
+				i += x
+			}
+		}
+	}
+	sink += i
+}
+
+// BenchmarkSliceOpt measures a hand-optimized generic slice iteration, updating a local.
+func BenchmarkNestedSliceOpt(b *testing.B) {
+	slice := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for _ = range OfSliceOpt(slice) {
+			for y := range OfSliceOpt(slice) {
+				i += y
+			}
+		}
+	}
+	sink += i
+}
+
+// BenchmarkSliceInlineV2 measures a hand-inlined generic slice iteration, updating a local.
+func BenchmarkNestedSliceInlineV2(b *testing.B) {
+	slice := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for _ = range OfSliceInlineV2(slice) {
+			for y := range OfSliceInlineV2(slice) {
+				i += y
+			}
+		}
+	}
+	sink += i
+
+}
+
 func TestCheck(t *testing.T) {
 	i := 0
 	defer func() {

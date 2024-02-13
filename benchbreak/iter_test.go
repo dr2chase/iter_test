@@ -7,8 +7,8 @@
 package iter_test
 
 import (
-	"deedles.dev/xiter"
 	"fmt"
+	"github.com/dr2chase/xiter"
 	// "github.com/dr2chase/iter"
 	"math"
 	"os"

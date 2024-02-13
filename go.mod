@@ -1,4 +1,4 @@
-module github.com/dr2chase/iterbench
+module github.com/dr2chase/iter_test
 
 go 1.22
 

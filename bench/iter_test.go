@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.rangefunc
-
 package iter_test
 
 import (
 	"deedles.dev/xiter"
 	"fmt"
-	"github.com/dr2chase/iterbench"
+	"github.com/dr2chase/iter_test"
 	"iter"
 	"math"
 	"os"
@@ -21,7 +19,7 @@ import (
 // The benchmarks here compare various ways of iterating.
 // The iterations tend to run over 14 things, twice, because reasons.
 
-var t1, t2, t1Small, t2Small *iterbench.T[Int32, sstring]
+var t1, t2, t1Small, t2Small *iter_test.T[Int32, sstring]
 var t1Len, t2Len int
 
 var m1 map[int]string = make(map[int]string)
@@ -30,7 +28,7 @@ var m2 map[int]string = make(map[int]string)
 var global, sink int
 
 func TestMain(m *testing.M) {
-	t1 = &iterbench.T[Int32, sstring]{}
+	t1 = &iter_test.T[Int32, sstring]{}
 	t1.Insert(1, sstring{"ant"})
 	t1.Insert(2, sstring{"bat"})
 	t1.Insert(3, sstring{"cat"})
@@ -47,7 +45,7 @@ func TestMain(m *testing.M) {
 	t1.Insert(13, sstring{"moi"})
 	t1.Insert(14, sstring{"noi"})
 
-	t2 = &iterbench.T[Int32, sstring]{}
+	t2 = &iter_test.T[Int32, sstring]{}
 	t2.Insert(21, sstring{"auntie"})
 	t2.Insert(22, sstring{"batty"})
 	t2.Insert(23, sstring{"catty"})

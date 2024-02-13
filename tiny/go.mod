@@ -1,3 +1,3 @@
-module github.com/dr2chase/iterbench/tiny
+module github.com/dr2chase/iter_test/tiny
 
 go 1.15

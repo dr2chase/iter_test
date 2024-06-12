@@ -6,14 +6,16 @@ package iter_test
 
 import (
 	"fmt"
-	"github.com/dr2chase/iter_test"
-	"github.com/dr2chase/xiter"
 	"iter"
 	"math"
 	"os"
 	_ "runtime"
+	"slices"
 	"sync"
 	"testing"
+
+	"github.com/dr2chase/iter_test"
+	"github.com/dr2chase/xiter"
 )
 
 // The benchmarks here compare various ways of iterating.
@@ -369,6 +371,57 @@ func BenchmarkSliceSpecializedChecked(b *testing.B) {
 		}
 	}
 	if i != Int32(b.N*15*14) {
+		panic(fmt.Errorf("Expected i = %d, got %d", b.N*15*14, i))
+	}
+}
+
+func BenchmarkSliceOldILocalBackward(b *testing.B) {
+	slice := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for j := len(slice) - 1; j >= 0; j-- {
+			i += slice[j]
+		}
+		for j := len(slice) - 1; j >= 0; j-- {
+			i += slice[j]
+		}
+	}
+	if i != b.N*15*14 {
+		panic(fmt.Errorf("Expected i = %d, got %d", b.N*15*14, i))
+	}
+	sink += i
+}
+
+// BenchmarkSliceOldIGlobal measures an old range-of-slice loop updating a GLOBAL variable.
+func BenchmarkSliceOldIGlobalBackward(b *testing.B) {
+	slice := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
+	b.ReportAllocs()
+	for range b.N {
+		for j := len(slice) - 1; j >= 0; j-- {
+			global += slice[j]
+		}
+		for j := len(slice) - 1; j >= 0; j-- {
+			global += slice[j]
+		}
+	}
+	sink += global
+}
+
+// BenchmarkSlice measures xiter.OfSlice (generic), updating a local.
+func BenchmarkSliceBackward(b *testing.B) {
+	slice := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for _, x := range slices.Backward(slice) {
+			i += x
+		}
+		for _, x := range slices.Backward(slice) {
+			i += x
+		}
+	}
+	if i != b.N*15*14 {
 		panic(fmt.Errorf("Expected i = %d, got %d", b.N*15*14, i))
 	}
 }

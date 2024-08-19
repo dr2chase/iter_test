@@ -715,21 +715,6 @@ func BenchmarkDoAll2Flat(b *testing.B) {
 	sink += i
 }
 
-// BenchmarkDoAll2FlatEqualZip primarily checks that the flat iterator is correct
-// (at least for these inputs), but also measures the cost of a complex composition
-// of iterator transformers.
-func BenchmarkDoAll2FlatEqualZip(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
-		if !xiter.Equal(xiter.V1(t1.DoAll2), xiter.V1(t1.DoAll2Flat)) {
-			panic("Should have been equal")
-		}
-		if !xiter.EqualFunc(xiter.V2(t1.DoAll2), xiter.V2(t1.DoAll2Flat), func(x, y sstring) bool { return x == y }) {
-			panic("Should have been equal")
-		}
-	}
-}
-
 // BenchmarkDoAllCheck measures the cost of the recursive iterator when wrapped in a "Check" function
 // (not to be confused with the automatically inserted checking).
 func BenchmarkDoAllCheck(b *testing.B) {
@@ -744,6 +729,21 @@ func BenchmarkDoAllCheck(b *testing.B) {
 		}
 	}
 	sink += i
+}
+
+// BenchmarkDoAll2FlatEqualZip primarily checks that the flat iterator is correct
+// (at least for these inputs), but also measures the cost of a complex composition
+// of iterator transformers.
+func BenchmarkDoAll2FlatEqualZip(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		if !xiter.Equal(xiter.V1(t1.DoAll2), xiter.V1(t1.DoAll2Flat)) {
+			panic("Should have been equal")
+		}
+		if !xiter.EqualFunc(xiter.V2(t1.DoAll2), xiter.V2(t1.DoAll2Flat), func(x, y sstring) bool { return x == y }) {
+			panic("Should have been equal")
+		}
+	}
 }
 
 // BenchmarkFromPair measures the cost of `for k, v := range xiter.FromPair(xiter.ToPair(t1.DoAll2Func()))`

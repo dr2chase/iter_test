@@ -685,7 +685,22 @@ func BenchmarkDoAll(b *testing.B) {
 	sink += i
 }
 
-// BenchmarkDoAll2 measures the cost of iterating a method value closure.
+// BenchmarkDoAll measures the cost of iterating a method closure.
+func BenchmarkDoAllMethod(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for x := range t1.DoAll {
+			i += int(x)
+		}
+		for x := range t2.DoAll {
+			i += int(x)
+		}
+	}
+	sink += i
+}
+
+// BenchmarkDoAll2 measures the cost of iterating a two-value method value closure.
 func BenchmarkDoAll2(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
@@ -700,7 +715,7 @@ func BenchmarkDoAll2(b *testing.B) {
 	sink += i
 }
 
-// BenchmarkDoAll2 measures the cost of iterating a method value closure that does a non-recursive visit.
+// BenchmarkDoAll2 measures the cost of iterating a two-value method value closure that does a non-recursive visit.
 func BenchmarkDoAll2Flat(b *testing.B) {
 	b.ReportAllocs()
 	i := 0

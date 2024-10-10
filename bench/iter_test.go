@@ -715,8 +715,42 @@ func BenchmarkDoAll2(b *testing.B) {
 	sink += i
 }
 
-// BenchmarkDoAll2 measures the cost of iterating a two-value method value closure that does a non-recursive visit.
-func BenchmarkDoAll2Flat(b *testing.B) {
+/* This is a series of variants on a benchmark intended to measure costs, possibly improve code. */
+
+/* The first three do "exactly the same thing" visiting all the elements of two data structures */
+
+// BenchmarkDoAll2FlatCall measures the cost of the plain call of the iterator for a non-recursive in-order tree visit.
+func BenchmarkDoAll2FlatCall(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	yield := func(x Int32, y sstring) bool {
+		i += int(x) + len(y.s)
+		return true
+	}
+	for range b.N {
+		t1.DoAll2Flat(yield)
+		t2.DoAll2Flat(yield)
+	}
+	sink += i
+}
+
+// BenchmarkDoAll2FlatFunc measures the cost of iterating a two-value closure that does a non-recursive visit.
+func BenchmarkDoAll2FlatFunc(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for x, y := range t1.DoAll2FlatFunc() {
+			i += int(x) + len(y.s)
+		}
+		for x, y := range t2.DoAll2FlatFunc() {
+			i += int(x) + len(y.s)
+		}
+	}
+	sink += i
+}
+
+// BenchmarkDoAll2FlatMethod measures the cost of iterating a two-value method value closure that does a non-recursive visit.
+func BenchmarkDoAll2FlatMethod(b *testing.B) {
 	b.ReportAllocs()
 	i := 0
 	for range b.N {
@@ -726,6 +760,217 @@ func BenchmarkDoAll2Flat(b *testing.B) {
 		for x, y := range t2.DoAll2Flat {
 			i += int(x) + len(y.s)
 		}
+	}
+	sink += i
+}
+
+func True(x Int32, y sstring) bool {
+	return true
+}
+
+func False(x Int32, y sstring) bool {
+	return false
+}
+
+// Filter2 returns a Seq2 that yields only the values (v1, v2) of seq for which
+// f(v1, v2) returns true.
+func Filter2[T, U any](seq iter.Seq2[T, U], f func(T, U) bool) iter.Seq2[T, U] {
+	return func(yield func(T, U) bool) {
+		seq(func(v T, u U) bool {
+			if !f(v, u) {
+				return true
+			}
+			return yield(v, u)
+		})
+	}
+}
+
+/* The next eight benchmarks measure a filtered (actually always true) visit of the elements of two data structures. */
+
+// BenchmarkDoAll2FlatFuncIterIfTrue measures the cost of iterating
+// a two-value method value closure that does a non-recursive visit, where the
+// body of the loop contains a call to a filter function, that is a constant
+// (that can be inlined).
+func BenchmarkDoAll2FlatFuncIterIfTrue(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for x, y := range t1.DoAll2FlatFunc() {
+			if True(x, y) {
+				i += int(x) + len(y.s)
+			}
+		}
+		for x, y := range t2.DoAll2FlatFunc() {
+			if True(x, y) {
+				i += int(x) + len(y.s)
+			}
+		}
+	}
+	sink += i
+}
+
+// BenchmarkDoAll2FlatFilterCallTrue calls a visit method that also takes a filter parameter.
+func BenchmarkDoAll2FlatFilterCallTrue(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	yield := func(x Int32, y sstring) bool {
+		i += int(x) + len(y.s)
+		return true
+	}
+	for range b.N {
+		t1.DoAll2FlatFilter(yield, True)
+		t2.DoAll2FlatFilter(yield, True)
+	}
+	sink += i
+}
+
+// BenchmarkDoAll2FlatFilterFuncTrueCall calls a closure from method that also takes a filter parameter.
+func BenchmarkDoAll2FlatFilterFuncTrueCall(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	yield := func(x Int32, y sstring) bool {
+		i += int(x) + len(y.s)
+		return true
+	}
+	for range b.N {
+		t1.DoAll2FlatFilterFunc(True)(yield)
+		t2.DoAll2FlatFilterFunc(True)(yield)
+	}
+	sink += i
+}
+
+// BenchmarkDoAll2FlatFilterFuncTrueIter calls a method to generate a filtered iterator.
+// The filter parameter is a constant function.
+func BenchmarkDoAll2FlatFilterFuncTrueIter(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for x, y := range t1.DoAll2FlatFilterFunc(True) {
+			i += int(x) + len(y.s)
+		}
+		for x, y := range t2.DoAll2FlatFilterFunc(True) {
+			i += int(x) + len(y.s)
+		}
+	}
+	sink += i
+}
+
+var sel = True
+
+// BenchmarkDoAll2FlatFuncIterIfLocTrue implements "filter" as an inline test in the iterated body, where the filter is a local copy of a global function variable.
+func BenchmarkDoAll2FlatFuncIterIfLocTrue(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	sel := sel
+	for range b.N {
+		for x, y := range t1.DoAll2FlatFunc() {
+			if sel(x, y) {
+				i += int(x) + len(y.s)
+			}
+		}
+		for x, y := range t2.DoAll2FlatFunc() {
+			if sel(x, y) {
+				i += int(x) + len(y.s)
+			}
+		}
+	}
+	sink += i
+}
+
+// BenchmarkDoAll2FlatFuncIterIfGlobTrue implements "filter" as an inline test in the iterated body, where the filter is a global function variable.
+func BenchmarkDoAll2FlatFuncIterIfGlobTrue(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for x, y := range t1.DoAll2FlatFunc() {
+			if sel(x, y) {
+				i += int(x) + len(y.s)
+			}
+		}
+		for x, y := range t2.DoAll2FlatFunc() {
+			if sel(x, y) {
+				i += int(x) + len(y.s)
+			}
+		}
+	}
+	sink += i
+}
+
+// BenchmarkDoAll2FlatFuncCombinatorFilterTrueIter iterates a filter combinator applied to a closure returned by a method.
+func BenchmarkDoAll2FlatFuncCombinatorFilterTrueIter(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for x, y := range Filter2(t1.DoAll2FlatFunc(), True) {
+			i += int(x) + len(y.s)
+		}
+		for x, y := range Filter2(t2.DoAll2FlatFunc(), True) {
+			i += int(x) + len(y.s)
+		}
+	}
+	sink += i
+}
+
+// BenchmarkDoAll2FlatMethodCombinatorFilterTrueIter iterates a filter combinator applied to a method closure
+func BenchmarkDoAll2FlatMethodCombinatorFilterTrueIter(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for x, y := range Filter2(t1.DoAll2Flat, True) {
+			i += int(x) + len(y.s)
+		}
+		for x, y := range Filter2(t2.DoAll2Flat, True) {
+			i += int(x) + len(y.s)
+		}
+	}
+	sink += i
+}
+
+/* The next three compare different ways of filtering when the filter function is false, i.e., the "body" func is never called. */
+
+// BenchmarkDoAll2FlatFilterFuncFalseIter measures the cost of a ITERATION of a two-value method value closure that does a non-recursive filtered visit.
+// Compare with BenchmarkDoAll2FlatFilterFuncTrueIter
+func BenchmarkDoAll2FlatFilterFuncFalseIter(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	for range b.N {
+		for x, y := range t1.DoAll2FlatFilterFunc(False) {
+			i += int(x) + len(y.s)
+		}
+		for x, y := range t2.DoAll2FlatFilterFunc(False) {
+			i += int(x) + len(y.s)
+		}
+	}
+	sink += i
+}
+
+// BenchmarkDoAll2FlatFilterFuncFalseCall measures the cost of a CALL of a two-value method value closure that does a non-recursive filtered visit..
+// Compare with BenchmarkDoAll2FlatFilterFuncTrueCall
+func BenchmarkDoAll2FlatFilterFuncFalseCall(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	yield := func(x Int32, y sstring) bool {
+		i += int(x) + len(y.s)
+		return true
+	}
+	for range b.N {
+		t1.DoAll2FlatFilterFunc(False)(yield)
+		t2.DoAll2FlatFilterFunc(False)(yield)
+	}
+	sink += i
+}
+
+// BenchmarkDoAll2FlatFilterCallFalse calls a visit method that also takes a filter parameter, which is false.
+func BenchmarkDoAll2FlatFilterCallFalse(b *testing.B) {
+	b.ReportAllocs()
+	i := 0
+	yield := func(x Int32, y sstring) bool {
+		i += int(x) + len(y.s)
+		return true
+	}
+	for range b.N {
+		t1.DoAll2FlatFilter(yield, False)
+		t2.DoAll2FlatFilter(yield, False)
 	}
 	sink += i
 }
